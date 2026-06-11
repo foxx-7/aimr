@@ -1,9 +1,7 @@
 HELP.md
 application-secrets.yaml
 testdata.properties
-cleanup notes
-Spring_Boot_Testing_Guide.pdf
-kafka_fixes_report.md
+patch notes
 
 target/
 .mvn/wrapper/maven-wrapper.jar
