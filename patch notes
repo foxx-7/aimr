@@ -1,0 +1,13 @@
+ensure naming consistency across services and controllers and DAOs
+entities implementing abstract entity will be crosschecked
+implement refresh tokens for user session management
+implement idempotence at sendNotification function with rate limiting......=Done
+use records for immutable DTOs instead of classes
+implement offline first request handling(Emergency queues)
+write aimr readme in github and production guide...
+setup grafana and prometheus for performance monitoring;
+
+
+
+
+ollama model download: opencoder:1.5b

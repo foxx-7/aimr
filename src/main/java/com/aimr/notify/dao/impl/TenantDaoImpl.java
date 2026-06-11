@@ -3,7 +3,7 @@ package com.aimr.notify.dao.impl;
 import com.aimr.notify.dao.interfaces.CacheService;
 import com.aimr.notify.dao.interfaces.TenantDao;
 import com.aimr.notify.dao.repostiories.jpa.TenantRepository;
-import com.aimr.notify.models.entity.Tenant;
+import com.aimr.notify.model.entity.Tenant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

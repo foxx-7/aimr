@@ -1,7 +1,7 @@
 package com.aimr.notify.exception.handler;
 
 import com.aimr.notify.exception.*;
-import com.aimr.notify.models.dto.response.ApiResponse;
+import com.aimr.notify.model.dto.response.ApiResponse;
 import com.aimr.notify.util.CommonUtils;
 import lombok.NonNull;
 import org.springframework.http.HttpStatus;
@@ -25,8 +25,8 @@ public class GenericGlobalExceptionHandler {
                 .NOT_FOUND.value(), exception.getErrorMessage()));
     }
 
-    @ExceptionHandler(NotificationDispatchException.class)
-    public ApiResponse<@NonNull String> handleNotificationDispatchException(NotificationDispatchException exception){
+    @ExceptionHandler(DataTransportException.class)
+    public ApiResponse<@NonNull String> handleNotificationDispatchException(DataTransportException exception){
         return genericExceptionHandler(exception, ()->ApiResponse.error(HttpStatus.
                 EXPECTATION_FAILED.value(), exception.getErrorMessage()));
     }

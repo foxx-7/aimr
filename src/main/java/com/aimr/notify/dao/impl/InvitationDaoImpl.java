@@ -2,7 +2,7 @@ package com.aimr.notify.dao.impl;
 
 import com.aimr.notify.dao.interfaces.InvitationDao;
 import com.aimr.notify.dao.repostiories.jpa.InvitationRepository;
-import com.aimr.notify.models.entity.Invitation;
+import com.aimr.notify.model.entity.Invitation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

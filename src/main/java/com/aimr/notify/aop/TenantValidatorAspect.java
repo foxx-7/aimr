@@ -1,11 +1,7 @@
 package com.aimr.notify.aop;
 
 import com.aimr.notify.exception.ValidationException;
-<<<<<<< HEAD
-import com.aimr.notify.models.entity.TenantAware;
-=======
-import com.aimr.notify.models.interfaces.TenantAware;
->>>>>>> a24ab90 (feat: initial testing)
+import com.aimr.notify.model.interfaces.TenantAware;
 import com.aimr.notify.util.CommonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -16,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.Optional;
+
+import static com.aimr.notify.constant.ErrorConstants.TENANT_RESOURCE_ACCESS_BREECH_ERROR;
 
 @Aspect
 @Component
@@ -38,7 +36,7 @@ public class TenantValidatorAspect {
 
     private void validateObject(Object arg, String currentTenantId) {
         if (arg instanceof TenantAware tenantAware) {
-            validate(tenantAware.getId(), currentTenantId);
+            validate(tenantAware.getTenantId(), currentTenantId);
         } else if (arg instanceof Optional<?> opt && opt.isPresent()) {
             validateObject(opt.get(), currentTenantId);
         } else if (arg instanceof Collection<?> collection) {
@@ -48,9 +46,9 @@ public class TenantValidatorAspect {
 
     private void validate(String resourceTenantId, String currentTenantId) {
         if (resourceTenantId != null && !resourceTenantId.equals(currentTenantId)) {
-            log.error("Security Breach Attempt: Tenant {} tried to access resource belonging to Tenant {}", 
+            log.error("[TenantValidatorAspect] Security Breach Attempt: Tenant {} tried to access resource belonging to Tenant {}",
                       currentTenantId, resourceTenantId);
-            throw new ValidationException("Access Denied: Resource belongs to another tenant", HttpStatus.FORBIDDEN.value());
+            throw new ValidationException(TENANT_RESOURCE_ACCESS_BREECH_ERROR, HttpStatus.FORBIDDEN.value());
         }
     }
 }

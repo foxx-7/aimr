@@ -1,7 +1,7 @@
 package com.aimr.notify.pubsub.channel.email.service.impl;
 
 import com.aimr.notify.config.ApplicationProperties;
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +11,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
 import org.springframework.messaging.Message;
-import static com.aimr.notify.constants.ApplicationConstants.*;
+import static com.aimr.notify.constant.ApplicationConstants.*;
 
 @Component
 @RequiredArgsConstructor

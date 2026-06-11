@@ -1,7 +1,7 @@
 package com.aimr.notify.pubsub.channel.email.service.impl;
 
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
-import com.aimr.notify.models.enums.NotificationStatus;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.enums.NotificationStatus;
 import com.aimr.notify.service.interfaces.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +11,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
-import static com.aimr.notify.constants.ApplicationConstants.X_REQUEST_ID;
+import static com.aimr.notify.constant.ApplicationConstants.X_REQUEST_ID;
 
 @Component
 @RequiredArgsConstructor

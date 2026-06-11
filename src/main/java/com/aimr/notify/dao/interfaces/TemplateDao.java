@@ -1,6 +1,6 @@
 package com.aimr.notify.dao.interfaces;
 
-import com.aimr.notify.models.entity.Template;
+import com.aimr.notify.model.entity.Template;
 import lombok.NonNull;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;

@@ -1,6 +1,6 @@
 package com.aimr.notify.dao.interfaces;
 
-import com.aimr.notify.models.entity.TenantMembership;
+import com.aimr.notify.model.entity.TenantMembership;
 
 import java.util.Optional;
 

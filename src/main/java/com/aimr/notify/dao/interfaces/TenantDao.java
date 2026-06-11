@@ -1,8 +1,7 @@
 package com.aimr.notify.dao.interfaces;
 
-import com.aimr.notify.models.entity.Tenant;
+import com.aimr.notify.model.entity.Tenant;
 
-import java.util.List;
 import java.util.Optional;
 
 public interface TenantDao {

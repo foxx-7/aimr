@@ -1,7 +1,7 @@
 package com.aimr.notify.pubsub.channel.email.service.impl;
 
 import com.aimr.notify.config.ApplicationProperties;
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
 import com.aimr.notify.pubsub.channel.email.service.interfaces.EmailDeliveryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

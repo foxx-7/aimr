@@ -18,9 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import static com.aimr.notify.constants.ApplicationConstants.AUTH_V1_PATHS;
-import static com.aimr.notify.constants.ApplicationConstants.REGISTER_TENANT_V1_PATH;
-
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

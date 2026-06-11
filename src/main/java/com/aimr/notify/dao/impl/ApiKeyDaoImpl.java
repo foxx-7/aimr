@@ -2,8 +2,8 @@ package com.aimr.notify.dao.impl;
 
 import com.aimr.notify.dao.interfaces.ApiKeyDao;
 import com.aimr.notify.dao.repostiories.jpa.ApikeyRepository;
-import com.aimr.notify.models.entity.ApiKey;
-import com.aimr.notify.models.enums.ApiKeyStatus;
+import com.aimr.notify.model.entity.ApiKey;
+import com.aimr.notify.model.enums.ApiKeyStatus;
 import com.aimr.notify.util.CommonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

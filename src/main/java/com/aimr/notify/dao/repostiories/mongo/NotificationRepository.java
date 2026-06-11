@@ -1,6 +1,6 @@
 package com.aimr.notify.dao.repostiories.mongo;
 
-import com.aimr.notify.models.entity.Notification;
+import com.aimr.notify.model.entity.Notification;
 import lombok.NonNull;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;

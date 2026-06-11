@@ -1,7 +1,7 @@
 package com.aimr.notify.security.filters;
 
-import com.aimr.notify.models.context.NotificationContext;
-import com.aimr.notify.models.context.NotificationContextHolder;
+import com.aimr.notify.model.context.NotificationContext;
+import com.aimr.notify.model.context.NotificationContextHolder;
 import com.aimr.notify.util.CommonUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-import static com.aimr.notify.constants.ApplicationConstants.*;
+import static com.aimr.notify.constant.ApplicationConstants.*;
 
 
 @Component

@@ -1,19 +1,20 @@
 package com.aimr.notify.service.impl;
 
+import com.aimr.notify.aop.ValidateTenant;
 import com.aimr.notify.dao.interfaces.InvitationDao;
 import com.aimr.notify.dao.interfaces.TenantMembershipDao;
 import com.aimr.notify.dao.interfaces.UserDao;
 import com.aimr.notify.exception.ResourceNotFoundException;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.dto.request.InviteUserRequest;
-import com.aimr.notify.models.dto.response.TenantMembershipResponse;
-import com.aimr.notify.models.dto.response.AuthenticatedUserDetails;
-import com.aimr.notify.models.entity.Invitation;
-import com.aimr.notify.models.entity.TenantMembership;
-import com.aimr.notify.models.entity.User;
-import com.aimr.notify.models.enums.InvitationStatus;
-import com.aimr.notify.models.enums.MembershipStatus;
-import com.aimr.notify.models.enums.Role;
+import com.aimr.notify.model.dto.request.InviteUserRequest;
+import com.aimr.notify.model.dto.response.TenantMembershipResponse;
+import com.aimr.notify.model.dto.response.AuthenticatedUserDetails;
+import com.aimr.notify.model.entity.Invitation;
+import com.aimr.notify.model.entity.TenantMembership;
+import com.aimr.notify.model.entity.User;
+import com.aimr.notify.model.enums.InvitationStatus;
+import com.aimr.notify.model.enums.MembershipStatus;
+import com.aimr.notify.model.enums.Role;
 import com.aimr.notify.service.interfaces.UserService;
 import com.aimr.notify.util.CommonUtils;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-import static com.aimr.notify.constants.ErrorConstants.*;
+import static com.aimr.notify.constant.ErrorConstants.*;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +52,7 @@ public class UserServiceImpl implements UserService , UserDetailsService {
 
 
     @Transactional
+    @ValidateTenant
     @Override
     public void sendInvitation(final InviteUserRequest request) {
         String tenantId = CommonUtils.getCurrentTenantId();
@@ -62,7 +64,7 @@ public class UserServiceImpl implements UserService , UserDetailsService {
         userDao.findByEmail(request.getEmail()).ifPresentOrElse(
             existingUser -> {
                 membershipDao.findMembershipByUserIdAndTenantId(existingUser.getId(), tenantId).ifPresent(_ -> {
-                    throw new ValidationException(USER_ALREADY_EXISTS_ERROR, HttpStatus.BAD_REQUEST.value());
+                    throw new ValidationException(MEMBERSHIP_ALREADY_EXISTS_ERROR, HttpStatus.BAD_REQUEST.value());
                 });
                 TenantMembership membership = TenantMembership.builder()
                         .id(CommonUtils.generateUUIDv7())
@@ -91,6 +93,7 @@ public class UserServiceImpl implements UserService , UserDetailsService {
     }
 
     @Override
+    @ValidateTenant
     public TenantMembershipResponse fetchMembershipByUserIdAndTenantId(final String userId, final String tenantId) {
         TenantMembership membership = membershipDao.findMembershipByUserIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_MEMBERSHIP_NOT_FOUND_ERROR, HttpStatus.NOT_FOUND.value()));
@@ -98,6 +101,7 @@ public class UserServiceImpl implements UserService , UserDetailsService {
     }
 
     @Override
+    @ValidateTenant
     public void renounceUserMembership(final String userId, final String tenantId) {
         TenantMembership membership = membershipDao.findMembershipByUserIdAndTenantId(userId, tenantId)
                 .orElseThrow(() ->
@@ -109,6 +113,7 @@ public class UserServiceImpl implements UserService , UserDetailsService {
     }
 
     @Override
+    @ValidateTenant
     public void updateMembershipPrivilege(final String userId, final Role role) {
         TenantMembership membership = membershipDao.findMembershipByUserIdAndTenantId(userId, CommonUtils.getCurrentTenantId())
                 .orElseThrow(() ->

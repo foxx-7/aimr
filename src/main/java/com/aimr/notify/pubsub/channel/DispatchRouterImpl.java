@@ -1,9 +1,9 @@
 package com.aimr.notify.pubsub.channel;
 
 import com.aimr.notify.config.ApplicationProperties;
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
-import com.aimr.notify.models.dto.IngestTopicDTO;
-import com.aimr.notify.models.enums.NotificationChannel;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.dto.IngestTopicDTO;
+import com.aimr.notify.model.enums.NotificationChannel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
-import static com.aimr.notify.constants.ApplicationConstants.X_REQUEST_ID;
+import static com.aimr.notify.constant.ApplicationConstants.X_REQUEST_ID;
 
 @Component
 @RequiredArgsConstructor

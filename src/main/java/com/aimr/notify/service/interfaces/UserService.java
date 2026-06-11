@@ -1,12 +1,9 @@
 package com.aimr.notify.service.interfaces;
 
-import com.aimr.notify.models.dto.response.TenantMembershipResponse;
-import com.aimr.notify.models.enums.Role;
-import com.aimr.notify.models.dto.request.InviteUserRequest;
-import com.aimr.notify.models.dto.response.UserResponse;
+import com.aimr.notify.model.dto.response.TenantMembershipResponse;
+import com.aimr.notify.model.enums.Role;
+import com.aimr.notify.model.dto.request.InviteUserRequest;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
 
 public interface UserService {
 

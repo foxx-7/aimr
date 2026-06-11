@@ -1,6 +1,6 @@
 package com.aimr.notify.dao.repostiories.jpa;
 
-import com.aimr.notify.models.entity.Invitation;
+import com.aimr.notify.model.entity.Invitation;
 import lombok.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

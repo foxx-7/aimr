@@ -1,6 +1,6 @@
 package com.aimr.notify.pubsub.channel.email.provider.impl;
 
-import com.aimr.notify.models.dto.EmailDispatchDto;
+import com.aimr.notify.model.dto.EmailDispatchDto;
 import com.aimr.notify.pubsub.channel.email.provider.interfaces.GenericPrimaryEmailProvider;
 import com.aimr.notify.pubsub.channel.email.provider.interfaces.PrimaryEmailProvider;
 import lombok.RequiredArgsConstructor;

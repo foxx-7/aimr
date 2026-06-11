@@ -1,9 +1,9 @@
 package com.aimr.notify.service.interfaces;
 
-import com.aimr.notify.models.dto.request.LoginRequest;
-import com.aimr.notify.models.dto.request.SignUpRequest;
-import com.aimr.notify.models.dto.response.AuthResponse;
-import com.aimr.notify.models.dto.response.SignUpResponse;
+import com.aimr.notify.model.dto.request.LoginRequest;
+import com.aimr.notify.model.dto.request.SignUpRequest;
+import com.aimr.notify.model.dto.response.AuthResponse;
+import com.aimr.notify.model.dto.response.SignUpResponse;
 
 public interface AuthService {
 

@@ -1,10 +1,10 @@
 package com.aimr.notify.dao.interfaces;
 
-import com.aimr.notify.models.dto.ChannelStatusCount;
-import com.aimr.notify.models.dto.NotificationCursor;
-import com.aimr.notify.models.enums.NotificationChannel;
-import com.aimr.notify.models.entity.Notification;
-import com.aimr.notify.models.enums.NotificationStatus;
+import com.aimr.notify.model.dto.ChannelStatusCount;
+import com.aimr.notify.model.dto.NotificationCursor;
+import com.aimr.notify.model.enums.NotificationChannel;
+import com.aimr.notify.model.entity.Notification;
+import com.aimr.notify.model.enums.NotificationStatus;
 
 import java.time.Instant;
 import java.util.List;

@@ -37,7 +37,6 @@ public class ApplicationProperties {
     @Value("${kafka.webhook.topic}")
     private String WebHookTopic;
 
-
     @Value("${spring.mongodb.uri}")
     private String mongoConnectionURI;
 

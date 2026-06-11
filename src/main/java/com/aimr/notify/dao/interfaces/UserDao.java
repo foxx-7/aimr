@@ -1,6 +1,6 @@
 package com.aimr.notify.dao.interfaces;
 
-import com.aimr.notify.models.entity.User;
+import com.aimr.notify.model.entity.User;
 
 import java.util.Optional;
 

@@ -1,11 +1,11 @@
 package com.aimr.notify.controller;
 
-import com.aimr.notify.models.dto.request.CreateTemplateRequest;
-import com.aimr.notify.models.dto.request.UpdateTemplateRequest;
-import com.aimr.notify.models.dto.request.TemplateFilterRequest;
-import com.aimr.notify.models.dto.response.ApiResponse;
-import com.aimr.notify.models.dto.response.FilterTemplateResponse;
-import com.aimr.notify.models.dto.response.TemplateResponse;
+import com.aimr.notify.model.dto.request.CreateTemplateRequest;
+import com.aimr.notify.model.dto.request.UpdateTemplateRequest;
+import com.aimr.notify.model.dto.request.TemplateFilterRequest;
+import com.aimr.notify.model.dto.response.ApiResponse;
+import com.aimr.notify.model.dto.response.FilterTemplateResponse;
+import com.aimr.notify.model.dto.response.TemplateResponse;
 import com.aimr.notify.service.interfaces.TemplateService;
 import jakarta.validation.Valid;
 import lombok.NonNull;
@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import static com.aimr.notify.constants.ApplicationConstants.*;
+import static com.aimr.notify.constant.ApplicationConstants.*;
 
 @RestController
 @RequiredArgsConstructor

@@ -1,8 +1,8 @@
 package com.aimr.notify.service.interfaces;
 
 import com.aimr.notify.aop.ValidateTenant;
-import com.aimr.notify.models.dto.request.RegisterTenantRequest;
-import com.aimr.notify.models.dto.response.TenantResponse;
+import com.aimr.notify.model.dto.request.RegisterTenantRequest;
+import com.aimr.notify.model.dto.response.TenantResponse;
 
 import java.util.Map;
 

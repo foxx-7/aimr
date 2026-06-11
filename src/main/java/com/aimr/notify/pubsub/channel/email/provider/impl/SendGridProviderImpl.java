@@ -1,8 +1,8 @@
 package com.aimr.notify.pubsub.channel.email.provider.impl;
 
-import com.aimr.notify.exception.NotificationDispatchException;
-import com.aimr.notify.models.dto.EmailDispatchDto;
-import com.aimr.notify.models.enums.NotificationStatus;
+import com.aimr.notify.exception.DataTransportException;
+import com.aimr.notify.model.dto.EmailDispatchDto;
+import com.aimr.notify.model.enums.NotificationStatus;
 import com.aimr.notify.pubsub.channel.email.provider.interfaces.SendGridProvider;
 import com.aimr.notify.service.interfaces.NotificationService;
 import com.aimr.notify.util.CommonUtils;
@@ -45,7 +45,7 @@ public class SendGridProviderImpl implements SendGridProvider {
             if (response.getStatusCode() >= 300) {
                 log.error("[Tenant: {}] SendGrid failed - status: {}, body: {}",
                         tenantId, response.getStatusCode(), response.getBody());
-                throw new NotificationDispatchException("SendGrid rejected the request: " + response.getStatusCode());
+                throw new DataTransportException("SendGrid rejected the request: " + response.getStatusCode());
             }
 
 

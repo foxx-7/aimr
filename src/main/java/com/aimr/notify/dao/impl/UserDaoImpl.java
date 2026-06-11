@@ -2,7 +2,7 @@ package com.aimr.notify.dao.impl;
 
 import com.aimr.notify.dao.interfaces.UserDao;
 import com.aimr.notify.dao.repostiories.jpa.UserRepository;
-import com.aimr.notify.models.entity.User;
+import com.aimr.notify.model.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

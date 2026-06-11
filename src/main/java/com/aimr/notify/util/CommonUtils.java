@@ -1,8 +1,8 @@
 package com.aimr.notify.util;
 
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.context.NotificationContextHolder;
-import com.aimr.notify.models.dto.response.AuthenticatedUserDetails;
+import com.aimr.notify.model.context.NotificationContextHolder;
+import com.aimr.notify.model.dto.response.AuthenticatedUserDetails;
 import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,7 +16,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.aimr.notify.constants.ApplicationConstants.X_REQUEST_ID;
+import static com.aimr.notify.constant.ApplicationConstants.X_REQUEST_ID;
 
 public final class CommonUtils {
 

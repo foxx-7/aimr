@@ -1,7 +1,7 @@
 package com.aimr.notify.security.util;
 
 import com.aimr.notify.config.ApplicationProperties;
-import com.aimr.notify.models.dto.response.AuthenticatedUserDetails;
+import com.aimr.notify.model.dto.response.AuthenticatedUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;

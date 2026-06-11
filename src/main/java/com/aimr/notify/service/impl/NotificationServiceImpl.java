@@ -3,19 +3,20 @@ package com.aimr.notify.service.impl;
 import com.aimr.notify.aop.ValidateTenant;
 import com.aimr.notify.dao.interfaces.NotificationDao;
 import com.aimr.notify.exception.DataConversionException;
-import com.aimr.notify.models.dto.*;
-import com.aimr.notify.models.enums.*;
-import com.aimr.notify.models.entity.IdempotencyKey;
-import com.aimr.notify.models.entity.Notification;
-import com.aimr.notify.models.dto.request.SendNotificationRequest;
-import com.aimr.notify.models.dto.response.NotificationResponse;
-import com.aimr.notify.models.dto.response.NotificationSearchResponse;
+import com.aimr.notify.model.dto.*;
+import com.aimr.notify.model.enums.*;
+import com.aimr.notify.model.entity.IdempotencyKey;
+import com.aimr.notify.model.entity.Notification;
+import com.aimr.notify.model.dto.request.SendNotificationRequest;
+import com.aimr.notify.model.dto.response.NotificationResponse;
+import com.aimr.notify.model.dto.response.NotificationSearchResponse;
 import com.aimr.notify.dao.interfaces.TemplateDao;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.exception.NotificationDispatchException;
-import com.aimr.notify.models.entity.Template;
+import com.aimr.notify.exception.DataTransportException;
+import com.aimr.notify.model.entity.Template;
 import com.aimr.notify.pubsub.queue.publisher.interfaces.GenericPublisher;
 import com.aimr.notify.service.interfaces.NotificationService;
+import com.aimr.notify.service.interfaces.RateLimitService;
 import com.aimr.notify.util.CommonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +28,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
-import static com.aimr.notify.constants.ApplicationConstants.*;
-import static com.aimr.notify.constants.ErrorConstants.*;
-import static com.aimr.notify.models.enums.NotificationStatus.*;
+import static com.aimr.notify.constant.ApplicationConstants.*;
+import static com.aimr.notify.constant.ErrorConstants.*;
+import static com.aimr.notify.model.enums.NotificationStatus.*;
 import static java.util.stream.Collectors.toMap;
 
 @Slf4j
@@ -40,12 +41,22 @@ public class NotificationServiceImpl implements NotificationService {
     private final TemplateDao templateDao;
     private final GenericPublisher genericPublisher;
     private final NotificationDao notificationDao;
+    private final RateLimitService rateLimitService;
     private final JsonMapper jsonMapper;
 
     @Override
     @ValidateTenant
-    public String sendNotification(final SendNotificationRequest request) {
+    public String sendNotification(final SendNotificationRequest request) {// <---- queue entry point here
+
         String tenantId = CommonUtils.getCurrentTenantId();
+
+        //rate limit implementation per notification request
+        rateLimitService.checkAndGuard(
+                tenantId,
+                request.getDispatchChannel().getValue(),
+                request.getTemplateId(),
+                request.getDynamicVariables());
+
         String templateId = request.getTemplateId();
 
         Optional<Template> byTenantIdAndId = templateDao.findTemplateByTenantIdAndId(tenantId, templateId);
@@ -59,14 +70,13 @@ public class NotificationServiceImpl implements NotificationService {
         Map<String, String> requestDynamicVariables = request.getDynamicVariables();
 
             /*
-                ensure the size of the size of the provided variables is not more than that of the size of the registered template
+                ensure the size of the size of the provided variables is not
+                 more than that of the size of the registered template
                 check if the provided dynamic variables match the variables in the registered template
              */
         if (!requestDynamicVariables.keySet().containsAll(template.getTemplateVariables().keySet())) {
             throw new ValidationException("Invalid Dynamic Variables");
         }
-
-        //ToDo: enforce idempotence using unique fields hashing to prevent db duplication and queue overloading attacks
 
         String requestId = CommonUtils.generateUUIDv4();
         String traceId = CommonUtils.getCurrentTraceId();
@@ -81,6 +91,7 @@ public class NotificationServiceImpl implements NotificationService {
                 .status(PENDING)
                 .submittedAt(CommonUtils.getCurrentTimeStamp())
                 .build();
+        notification.entityCreated();
         notificationDao.saveNotification(notification);
 
         IngestTopicDTO ingestTopicDTO = IngestTopicDTO.builder()
@@ -96,15 +107,15 @@ public class NotificationServiceImpl implements NotificationService {
         try {
             boolean published = genericPublisher.sendDataToIngest(ingestTopicDTO);
             if (!published) {
-                throw new NotificationDispatchException(KAFKA_PUBLISH_FAILURE_ERROR);
+                throw new DataTransportException(KAFKA_PUBLISH_FAILURE_ERROR);
             }
         } catch (Exception e) {
             notification.setStatus(FAILED);
             notificationDao.saveNotification(notification);
-            if (e instanceof NotificationDispatchException) {
-                throw (NotificationDispatchException) e;
+            if (e instanceof DataTransportException) {
+                throw (DataTransportException) e;
             }
-            throw new NotificationDispatchException(KAFKA_PUBLISH_FAILURE_ERROR.concat(e.getMessage()));
+            throw new DataTransportException(KAFKA_PUBLISH_FAILURE_ERROR.concat(e.getMessage()));
         }
         return notification.getRequestId();
     }

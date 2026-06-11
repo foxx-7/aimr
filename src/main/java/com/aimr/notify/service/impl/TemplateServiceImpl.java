@@ -2,14 +2,14 @@ package com.aimr.notify.service.impl;
 
 import com.aimr.notify.dao.interfaces.TemplateDao;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.entity.Template;
+import com.aimr.notify.model.entity.Template;
 import com.aimr.notify.aop.ValidateTenant;
-import com.aimr.notify.models.dto.request.CreateTemplateRequest;
-import com.aimr.notify.models.dto.request.UpdateTemplateRequest;
-import com.aimr.notify.models.dto.request.TemplateFilterRequest;
-import com.aimr.notify.models.dto.response.FilterTemplateResponse;
-import com.aimr.notify.models.dto.response.TemplateResponse;
-import com.aimr.notify.models.dto.response.TemplateResponseDTO;
+import com.aimr.notify.model.dto.request.CreateTemplateRequest;
+import com.aimr.notify.model.dto.request.UpdateTemplateRequest;
+import com.aimr.notify.model.dto.request.TemplateFilterRequest;
+import com.aimr.notify.model.dto.response.FilterTemplateResponse;
+import com.aimr.notify.model.dto.response.TemplateResponse;
+import com.aimr.notify.model.dto.response.TemplateResponseDTO;
 import com.aimr.notify.service.interfaces.TemplateService;
 import com.aimr.notify.util.CommonUtils;
 import lombok.NonNull;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static com.aimr.notify.constants.ErrorConstants.*;
+import static com.aimr.notify.constant.ErrorConstants.*;
 import static com.aimr.notify.util.CommonUtils.*;
 
 
@@ -61,6 +61,7 @@ class TemplateServiceImpl implements TemplateService {
     }
 
     @Override
+    @ValidateTenant
     public TemplateResponse updateTemplate(String id, UpdateTemplateRequest request) {
         Template template = getTemplateForCurrentTenant(id);
         if (isNotEmpty(request.getName())) {

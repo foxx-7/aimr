@@ -1,13 +1,13 @@
 package com.aimr.notify.pubsub.channel.email.service.impl;
 
-import com.aimr.notify.exception.NotificationDispatchException;
+import com.aimr.notify.exception.DataTransportException;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.dto.EmailDispatchDto;
-import com.aimr.notify.models.context.NotificationContext;
-import com.aimr.notify.models.context.NotificationContextHolder;
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
-import com.aimr.notify.models.enums.NotificationStatus;
-import com.aimr.notify.models.entity.IdempotencyKey;
+import com.aimr.notify.model.dto.EmailDispatchDto;
+import com.aimr.notify.model.context.NotificationContext;
+import com.aimr.notify.model.context.NotificationContextHolder;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.enums.NotificationStatus;
+import com.aimr.notify.model.entity.IdempotencyKey;
 import com.aimr.notify.pubsub.channel.email.service.interfaces.EmailDeliveryService;
 import com.aimr.notify.pubsub.channel.email.provider.interfaces.GenericBackUpEmailProvider;
 import com.aimr.notify.pubsub.channel.email.provider.interfaces.GenericPrimaryEmailProvider;
@@ -18,8 +18,8 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 
-import static com.aimr.notify.constants.ApplicationConstants.MAX_EMAIL_RETRIES;
-import static com.aimr.notify.constants.ApplicationConstants.X_REQUEST_ID;
+import static com.aimr.notify.constant.ApplicationConstants.MAX_EMAIL_RETRIES;
+import static com.aimr.notify.constant.ApplicationConstants.X_REQUEST_ID;
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +64,7 @@ public class EmailDeliveryServiceImpl implements EmailDeliveryService {
                     //ToDo:ensure and track that primary and retry providers do not return an empty mailId;
                     if (mailId == null || mailId.isEmpty()) {
                         log.error("[EmailDeliveryService] Null mailId returned from provider for request: {}", requestId);
-                        throw new NotificationDispatchException("mailId for request: " + requestId + " is null");
+                        throw new DataTransportException("mailId for request: " + requestId + " is null");
                     }
                     notificationService.markNotificationStatus(tenantId, requestId, mailId, NotificationStatus.DELIVERED);
                     log.info("[EmailDeliveryService] Delivered :requestId={}", requestId);
@@ -85,7 +85,7 @@ public class EmailDeliveryServiceImpl implements EmailDeliveryService {
             // Terminal — retry forbidden
             log.error("[EmailDeliveryService] Terminal failure | requestId: {}", requestId, e);
             notificationService.markNotificationStatus(tenantId, requestId, null, NotificationStatus.FAILED);
-        } catch (NotificationDispatchException e) {
+        } catch (DataTransportException e) {
 
             // Retryable — hand off to retry publisher
             log.warn("[EmailDeliveryService] Retryable failure | requestId: {} ,attempt: {}/{}",

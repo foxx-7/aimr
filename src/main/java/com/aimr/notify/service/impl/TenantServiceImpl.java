@@ -7,12 +7,12 @@ import com.aimr.notify.dao.interfaces.TenantMembershipDao;
 import com.aimr.notify.dao.interfaces.ApiKeyDao;
 import com.aimr.notify.exception.ResourceNotFoundException;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.dto.request.RegisterTenantRequest;
-import com.aimr.notify.models.dto.response.TenantResponse;
-import com.aimr.notify.models.entity.Tenant;
-import com.aimr.notify.models.entity.TenantMembership;
-import com.aimr.notify.models.enums.MembershipStatus;
-import com.aimr.notify.models.enums.Role;
+import com.aimr.notify.model.dto.request.RegisterTenantRequest;
+import com.aimr.notify.model.dto.response.TenantResponse;
+import com.aimr.notify.model.entity.Tenant;
+import com.aimr.notify.model.entity.TenantMembership;
+import com.aimr.notify.model.enums.MembershipStatus;
+import com.aimr.notify.model.enums.Role;
 import com.aimr.notify.service.interfaces.TenantService;
 import com.aimr.notify.util.CommonUtils;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
 
-import static com.aimr.notify.constants.ErrorConstants.*;
+import static com.aimr.notify.constant.ErrorConstants.*;
 
 @Service
 @RequiredArgsConstructor
@@ -84,6 +84,7 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Override
+    @ValidateTenant
     public TenantResponse updateTenant(String id, String ownerId, Map<String, Object> update) {
         Tenant tenant = tenantDao.findTenantByIdAndOwnerId(id, ownerId).orElseThrow(() ->
                 new ResourceNotFoundException(TENANT_NOT_FOUND_ERROR, HttpStatus.NOT_FOUND.value()));

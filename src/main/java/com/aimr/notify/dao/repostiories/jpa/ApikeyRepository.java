@@ -1,7 +1,7 @@
 package com.aimr.notify.dao.repostiories.jpa;
 
-import com.aimr.notify.models.entity.ApiKey;
-import com.aimr.notify.models.enums.ApiKeyStatus;
+import com.aimr.notify.model.entity.ApiKey;
+import com.aimr.notify.model.enums.ApiKeyStatus;
 import lombok.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 

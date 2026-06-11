@@ -1,7 +1,7 @@
 package com.aimr.notify.config;
 
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
-import com.aimr.notify.models.dto.IngestTopicDTO;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.dto.IngestTopicDTO;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;

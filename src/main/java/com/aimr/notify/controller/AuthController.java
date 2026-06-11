@@ -1,10 +1,10 @@
 package com.aimr.notify.controller;
 
-import com.aimr.notify.models.dto.request.LoginRequest;
-import com.aimr.notify.models.dto.request.SignUpRequest;
-import com.aimr.notify.models.dto.response.ApiResponse;
-import com.aimr.notify.models.dto.response.AuthResponse;
-import com.aimr.notify.models.dto.response.SignUpResponse;
+import com.aimr.notify.model.dto.request.LoginRequest;
+import com.aimr.notify.model.dto.request.SignUpRequest;
+import com.aimr.notify.model.dto.response.ApiResponse;
+import com.aimr.notify.model.dto.response.AuthResponse;
+import com.aimr.notify.model.dto.response.SignUpResponse;
 import com.aimr.notify.service.interfaces.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.aimr.notify.constants.ApplicationConstants.OBJECT_CREATED_SUCCESS_MESSAGE;
+import static com.aimr.notify.constant.ApplicationConstants.OBJECT_CREATED_SUCCESS_MESSAGE;
 
 @RestController
 @RequestMapping("/api/v1/auth/user")

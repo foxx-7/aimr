@@ -1,12 +1,12 @@
 package com.aimr.notify.controller;
 
-import com.aimr.notify.models.dto.NotificationSummary;
-import com.aimr.notify.models.enums.NotificationChannel;
-import com.aimr.notify.models.enums.NotificationStatus;
-import com.aimr.notify.models.enums.SummaryWindow;
-import com.aimr.notify.models.dto.request.SendNotificationRequest;
-import com.aimr.notify.models.dto.response.ApiResponse;
-import com.aimr.notify.models.dto.response.NotificationSearchResponse;
+import com.aimr.notify.model.dto.NotificationSummary;
+import com.aimr.notify.model.enums.NotificationChannel;
+import com.aimr.notify.model.enums.NotificationStatus;
+import com.aimr.notify.model.enums.SummaryWindow;
+import com.aimr.notify.model.dto.request.SendNotificationRequest;
+import com.aimr.notify.model.dto.response.ApiResponse;
+import com.aimr.notify.model.dto.response.NotificationSearchResponse;
 import com.aimr.notify.service.interfaces.NotificationService;
 import jakarta.validation.Valid;
 import lombok.NonNull;
@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 
-import static com.aimr.notify.constants.ApplicationConstants.OBJECT_CREATED_SUCCESS_MESSAGE;
-import static com.aimr.notify.constants.ApplicationConstants.OBJECT_RETRIEVAL_SUCCESS_MESSAGE;
+import static com.aimr.notify.constant.ApplicationConstants.OBJECT_CREATED_SUCCESS_MESSAGE;
+import static com.aimr.notify.constant.ApplicationConstants.OBJECT_RETRIEVAL_SUCCESS_MESSAGE;
 
 @RestController
 @RequiredArgsConstructor

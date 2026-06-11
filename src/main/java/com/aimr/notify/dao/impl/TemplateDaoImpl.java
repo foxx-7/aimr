@@ -3,7 +3,7 @@ package com.aimr.notify.dao.impl;
 import com.aimr.notify.dao.interfaces.CacheService;
 import com.aimr.notify.dao.interfaces.TemplateDao;
 import com.aimr.notify.dao.repostiories.mongo.TemplateRepository;
-import com.aimr.notify.models.entity.Template;
+import com.aimr.notify.model.entity.Template;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

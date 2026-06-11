@@ -3,11 +3,11 @@ package com.aimr.notify.service.impl;
 import com.aimr.notify.dao.interfaces.UserDao;
 import com.aimr.notify.exception.ResourceNotFoundException;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.dto.request.LoginRequest;
-import com.aimr.notify.models.dto.request.SignUpRequest;
-import com.aimr.notify.models.dto.response.AuthResponse;
-import com.aimr.notify.models.dto.response.SignUpResponse;
-import com.aimr.notify.models.entity.User;
+import com.aimr.notify.model.dto.request.LoginRequest;
+import com.aimr.notify.model.dto.request.SignUpRequest;
+import com.aimr.notify.model.dto.response.AuthResponse;
+import com.aimr.notify.model.dto.response.SignUpResponse;
+import com.aimr.notify.model.entity.User;
 import com.aimr.notify.security.util.JwtUtil;
 import com.aimr.notify.service.interfaces.AuthService;
 import com.aimr.notify.util.CommonUtils;
@@ -19,8 +19,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import static com.aimr.notify.constants.ErrorConstants.EMAIL_ALREADY_IN_USE_ERROR;
-import static com.aimr.notify.constants.ErrorConstants.USER_NOT_FOUND_ERROR;
+import static com.aimr.notify.constant.ErrorConstants.EMAIL_ALREADY_IN_USE_ERROR;
+import static com.aimr.notify.constant.ErrorConstants.USER_NOT_FOUND_ERROR;
 
 @Service
 @RequiredArgsConstructor

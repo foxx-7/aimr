@@ -2,7 +2,7 @@ package com.aimr.notify.dao.impl;
 
 import com.aimr.notify.dao.interfaces.CacheService;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.entity.annotations.CachePrefix;
+import com.aimr.notify.model.entity.annotations.CachePrefix;
 import tools.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.HashOperations;
@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Optional;
 
-import static com.aimr.notify.constants.ErrorConstants.CACHE_PARSING_ERROR;
-import static com.aimr.notify.constants.ErrorConstants.PUT_CACHING_ERROR;
+import static com.aimr.notify.constant.ErrorConstants.CACHE_PARSING_ERROR;
+import static com.aimr.notify.constant.ErrorConstants.PUT_CACHING_ERROR;
 
 @Service
 @RequiredArgsConstructor

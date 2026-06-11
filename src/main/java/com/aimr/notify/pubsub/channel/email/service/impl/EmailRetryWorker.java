@@ -1,6 +1,6 @@
 package com.aimr.notify.pubsub.channel.email.service.impl;
 
-import com.aimr.notify.models.dto.ChannelDispatchDTO;
+import com.aimr.notify.model.dto.ChannelDispatchDTO;
 import com.aimr.notify.pubsub.channel.email.service.interfaces.EmailDeliveryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
-import static com.aimr.notify.constants.ApplicationConstants.*;
+import static com.aimr.notify.constant.ApplicationConstants.*;
 
 @Component
 @RequiredArgsConstructor

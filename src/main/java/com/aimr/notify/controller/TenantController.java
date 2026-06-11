@@ -1,13 +1,13 @@
 package com.aimr.notify.controller;
 
-import com.aimr.notify.models.dto.request.RegisterTenantRequest;
-import com.aimr.notify.models.dto.request.InviteUserRequest;
-import com.aimr.notify.models.dto.response.ApiResponse;
-import com.aimr.notify.models.dto.response.TenantMembershipResponse;
-import com.aimr.notify.models.dto.response.TenantResponse;
+import com.aimr.notify.model.dto.request.RegisterTenantRequest;
+import com.aimr.notify.model.dto.request.InviteUserRequest;
+import com.aimr.notify.model.dto.response.ApiResponse;
+import com.aimr.notify.model.dto.response.TenantMembershipResponse;
+import com.aimr.notify.model.dto.response.TenantResponse;
 import com.aimr.notify.service.interfaces.TenantService;
 import com.aimr.notify.service.interfaces.UserService;
-import com.aimr.notify.models.dto.response.AuthenticatedUserDetails;
+import com.aimr.notify.model.dto.response.AuthenticatedUserDetails;
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-import static com.aimr.notify.constants.ApplicationConstants.*;
+import static com.aimr.notify.constant.ApplicationConstants.*;
 
 @RestController
 @RequestMapping("/api/v1")

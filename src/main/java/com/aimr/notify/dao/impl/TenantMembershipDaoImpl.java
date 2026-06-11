@@ -2,7 +2,7 @@ package com.aimr.notify.dao.impl;
 
 import com.aimr.notify.dao.interfaces.TenantMembershipDao;
 import com.aimr.notify.dao.repostiories.jpa.TenantMembershipRepository;
-import com.aimr.notify.models.entity.TenantMembership;
+import com.aimr.notify.model.entity.TenantMembership;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

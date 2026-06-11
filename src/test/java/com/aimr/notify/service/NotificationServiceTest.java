@@ -2,18 +2,18 @@ package com.aimr.notify.service;
 
 import com.aimr.notify.dao.interfaces.NotificationDao;
 import com.aimr.notify.dao.interfaces.TemplateDao;
-import com.aimr.notify.exception.NotificationDispatchException;
+import com.aimr.notify.exception.DataTransportException;
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.models.dto.ChannelStatusCount;
-import com.aimr.notify.models.dto.IngestTopicDTO;
-import com.aimr.notify.models.dto.NotificationCursor;
-import com.aimr.notify.models.dto.NotificationSummary;
-import com.aimr.notify.models.entity.IdempotencyKey;
-import com.aimr.notify.models.entity.Notification;
-import com.aimr.notify.models.entity.Template;
-import com.aimr.notify.models.enums.*;
-import com.aimr.notify.models.dto.request.SendNotificationRequest;
-import com.aimr.notify.models.dto.response.NotificationSearchResponse;
+import com.aimr.notify.model.dto.ChannelStatusCount;
+import com.aimr.notify.model.dto.IngestTopicDTO;
+import com.aimr.notify.model.dto.NotificationCursor;
+import com.aimr.notify.model.dto.NotificationSummary;
+import com.aimr.notify.model.entity.IdempotencyKey;
+import com.aimr.notify.model.entity.Notification;
+import com.aimr.notify.model.entity.Template;
+import com.aimr.notify.model.enums.*;
+import com.aimr.notify.model.dto.request.SendNotificationRequest;
+import com.aimr.notify.model.dto.response.NotificationSearchResponse;
 import com.aimr.notify.pubsub.queue.publisher.interfaces.GenericPublisher;
 import com.aimr.notify.service.impl.NotificationServiceImpl;
 import com.aimr.notify.util.CommonUtils;
@@ -28,8 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Instant;
 import java.util.*;
 
-import static com.aimr.notify.constants.ApplicationConstants.NOTIFICATION_SEARCH_PAGE_SIZE;
-import static com.aimr.notify.models.enums.NotificationStatus.*;
+import static com.aimr.notify.constant.ApplicationConstants.NOTIFICATION_SEARCH_PAGE_SIZE;
+import static com.aimr.notify.model.enums.NotificationStatus.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -201,7 +201,7 @@ class NotificationServiceTest {
                         .when(genericPublisher).sendDataToIngest(any());
 
                 // --- ASSERT ---
-                assertThrows(NotificationDispatchException.class,
+                assertThrows(DataTransportException.class,
                         () -> notificationService.sendNotification(request));
 
                 /*
@@ -239,7 +239,7 @@ class NotificationServiceTest {
                 // Kafka returns false
                 when(genericPublisher.sendDataToIngest(any())).thenReturn(false);
 
-                assertThrows(NotificationDispatchException.class,
+                assertThrows(DataTransportException.class,
                         () -> notificationService.sendNotification(request));
 
                 verify(notificationDao, times(2)).saveNotification(any(Notification.class));
