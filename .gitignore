@@ -1,7 +1,7 @@
 HELP.md
 application-secrets.yaml
 testdata.properties
-patch notes
+patchnotes
 
 target/
 .mvn/wrapper/maven-wrapper.jar
