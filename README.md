@@ -347,10 +347,6 @@ src/main/java/com/aimr/notify/
 ## Author
 
 **Kevin Unachukwu**
-B.Eng. Electrical and Electronics Engineering — Michael Okpara University of Agriculture, Umudike
 
-GitHub: [@foxx-7](https://github.com/foxx-7) · Twitter/X: [@kevincoretto](https://twitter.com/kevincoretto)
+GitHub: [@foxx-7](https://github.com/foxx-7) · Twitter/X: [@kevincoretto](https://twitter.com/kevincoretto) 
 
----
-
-> Built from scratch as a solo project. Every architectural decision — from Kafka topic design to Redis Lua atomicity to dual-provider email fallover — was made intentionally.
