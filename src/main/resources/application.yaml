@@ -96,6 +96,9 @@ aimr:
       default-rate-limit: 100
       max-concurrent-broadcasts: 2
       broadcast-inflight-ttl-seconds: 86400
+      # Token bucket
+      bucket-capacity: 20
+      refill-rate-per-second: 1.0
 
 resilience4j:
   circuitbreaker:

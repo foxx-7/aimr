@@ -48,12 +48,27 @@ public record RateLimitProperties(
          * Default: 86400 (24 hours)
          */
         @Positive
-        int broadcastInflightTtlSeconds
+        int broadcastInflightTtlSeconds,
 
+        /**
+         * Token bucket: maximum number of tokens (burst capacity) per tenant per channel.
+         * A full bucket allows this many requests to fire immediately before throttling.
+         * Default: 20
+         */
+        @Positive
+        int bucketCapacity,
+
+        /**
+         * Token bucket: number of tokens added per second.
+         * e.g. 1.0 = 1 token/sec, 0.5 = 1 token every 2 seconds.
+         * Default: 1.0
+         */
+        @Positive
+        double refillRatePerSecond
 
 ) {
     /**
-     * Returns the rate limit for the given channel,
+     * Returns the fixed window rate limit for the given channel,
      * falling back to defaultRateLimit if not configured.
      */
     public int limitFor(String channel) {

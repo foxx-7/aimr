@@ -10,7 +10,6 @@ import com.aimr.notify.consumer.dto.IngestTopicDTO;
 import com.aimr.notify.api.dto.response.ChannelStatusCount;
 import com.aimr.notify.api.dto.response.ChannelSummary;
 import com.aimr.notify.api.dto.response.NotificationSummary;
-import com.aimr.notify.domain.entity.IdempotencyKey;
 import com.aimr.notify.domain.entity.Notification;
 import com.aimr.notify.api.dto.request.SendNotificationRequest;
 import com.aimr.notify.api.dto.response.NotificationResponse;
@@ -53,12 +52,16 @@ public class NotificationService {
 
         String tenantId = CommonUtils.getCurrentTenantId();
 
-        //rate limit implementation per notification request
-        //rateLimiter.checkAndGuard(
-                //tenantId,
-                //request.dispatchChannel().getValue(),
-                //request.templateId(),
-                //request.dynamicVariables());
+        /**
+         * Rate limit implementation...
+         * ratelimiter.checkAndGuardWithTokenBucket or ratelimiter.checkAndGuardWithFixedWindow()
+         * exists for rate limiting functionality implementation using RateLimiter
+         */
+        rateLimiter.checkAndGuardWithTokenBucket(
+                tenantId,
+                request.dispatchChannel().getValue(),
+                request.templateId(),
+                request.dynamicVariables());
 
         String templateId = request.templateId();
 

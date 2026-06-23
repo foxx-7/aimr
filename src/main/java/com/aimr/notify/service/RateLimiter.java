@@ -25,14 +25,15 @@ import static com.aimr.notify.constant.ErrorConstants.*;
 public class RateLimiter {
 
     private final StringRedisTemplate redisTemplate;
-    private final RedisScript<@NonNull List<Long>> notificationGuardScript;
+    private final RedisScript<@NonNull List<Long>> fixedWindowGuardScript;
+    private final RedisScript<@NonNull List<Long>> tokenBucketGuardScript;
     private final RedisScript<@NonNull List<Long>> broadcastInflightScript;
     private final RateLimitProperties properties;
 
     /**
      * Performs a single atomic Redis check covering:
      *   1. Duplicate detection   — same tenantId + channel + templateId + variables within dupWindowSeconds
-     *   2. Rate limit enforcement — per tenant per channel, max requests per hour
+     *   2. Rate limit enforcement — fixed window, max requests per hour per tenant per channel
      * <p>
      * Must be called at the very start of sendNotification(), before any DB or Kafka work.
      *
@@ -40,93 +41,112 @@ public class RateLimiter {
      * @param channel    notification channel (e.g. "email", "sms", "push")
      * @param templateId template identifier used for this notification
      * @param variables  dynamic template variables map (order-insensitive)
-     * @throws ValidationException   if an identical request was made within the window
-     * @throws RateLimitException   if the tenant has exceeded the channel rate limit
-     * @throws ValidationException      if the Redis script returns an unexpected result
+     * @throws ValidationException if an identical request was made within the window
+     * @throws RateLimitException  if the tenant has exceeded the channel rate limit
      */
-    public void checkAndGuard(String tenantId,
-                              String channel,
-                              String templateId,
-                              Map<String, String> variables) {
+    public void checkAndGuardWithFixedWindow(String tenantId,
+                                             String channel,
+                                             String templateId,
+                                             Map<String, String> variables) {
 
         String dedupKey = buildDedupKey(tenantId, channel, templateId, variables);
         String rlKey    = buildRateLimitKey(tenantId, channel);
         int    rlMax    = properties.limitFor(channel);
         int    dupTtl   = properties.dupWindowSeconds();
 
-        log.debug("[Guard] Checking — tenantId={} channel={} templateId={} rlMax={} dupTtl={}s",
+        log.debug("[Guard:FixedWindow] Checking — tenantId={} channel={} templateId={} rlMax={} dupTtl={}s",
                 tenantId, channel, templateId, rlMax, dupTtl);
 
         List<Long> result = redisTemplate.execute(
-                notificationGuardScript,
+                fixedWindowGuardScript,
                 List.of(dedupKey, rlKey),
                 String.valueOf(rlMax),
                 String.valueOf(dupTtl),
                 String.valueOf(RATE_LIMIT_WINDOW_SECONDS)
         );
 
-        if (result.isEmpty()) {
-            log.error("[NotificationGuardService] Redis Lua script returned null — tenantId={} channel={}", tenantId, channel);
+        handleGuardResult(result, tenantId, channel, templateId, rlMax);
+    }
+
+    /**
+     * Performs a single atomic Redis check covering:
+     *   1. Duplicate detection   — same tenantId + channel + templateId + variables within dupWindowSeconds
+     *   2. Rate limit enforcement — token bucket, allows bursting up to bucketCapacity with continuous refill
+     * <p>
+     * Must be called at the very start of sendNotification(), before any DB or Kafka work.
+     *
+     * @param tenantId   tenant making the request (from TenantContext)
+     * @param channel    notification channel (e.g. "email", "sms", "push")
+     * @param templateId template identifier used for this notification
+     * @param variables  dynamic template variables map (order-insensitive)
+     * @throws ValidationException if an identical request was made within the window
+     * @throws RateLimitException  if the tenant's token bucket is empty
+     */
+    public void checkAndGuardWithTokenBucket(String tenantId,
+                                             String channel,
+                                             String templateId,
+                                             Map<String, String> variables) {
+
+        String dedupKey   = buildDedupKey(tenantId, channel, templateId, variables);
+        String bucketKey  = buildBucketKey(tenantId, channel);
+        int    capacity   = properties.bucketCapacity();
+        double refillRate = properties.refillRatePerSecond();
+        int    dupTtl     = properties.dupWindowSeconds();
+        long   nowMs      = Instant.now().toEpochMilli();
+
+        log.debug("[Guard:TokenBucket] Checking — tenantId={} channel={} templateId={} capacity={} refillRate={}/s",
+                tenantId, channel, templateId, capacity, refillRate);
+
+        List<Long> result = redisTemplate.execute(
+                tokenBucketGuardScript,
+                List.of(dedupKey, bucketKey),
+                String.valueOf(capacity),
+                String.valueOf(refillRate),
+                String.valueOf(nowMs),
+                String.valueOf(dupTtl)
+        );
+
+        handleGuardResult(result, tenantId, channel, templateId, capacity);
+    }
+
+    /**
+     * Shared result handler for both fixed window and token bucket guard scripts.
+     * Both scripts return the same [status, count/tokens] contract:
+     *   [ 1,  value] = OK
+     *   [ 0,   -1  ] = DUPLICATE
+     *   [-1,  value] = RATE LIMITED
+     */
+    private void handleGuardResult(List<Long> result,
+                                   String tenantId,
+                                   String channel,
+                                   String templateId,
+                                   int limit) {
+        if (result == null || result.isEmpty()) {
+            log.error("[Guard] Redis Lua script returned null — tenantId={} channel={}", tenantId, channel);
             throw new ValidationException(NOTIFICATION_GUARD_CHECK_ERROR);
         }
 
         long status = result.get(0);
-        long count  = result.get(1);
+        long value  = result.get(1);
 
         switch ((int) status) {
             case 0 -> {
                 int windowMinutes = properties.dupWindowSeconds() / 60;
-                log.warn("[NotificationGuardService] Duplicate blocked — tenantId={} channel={} templateId={}",
+                log.warn("[Guard] Duplicate blocked — tenantId={} channel={} templateId={}",
                         tenantId, channel, templateId);
                 throw new ValidationException(DUPLICATE_NOTIFICATION_REQUEST_ERROR.formatted(windowMinutes));
             }
             case -1 -> {
-                log.warn("[NotificationGuardService] Rate limit breached — tenantId: {} ,channel: {} ,count: {} ,max: {}",
-                        tenantId, channel, count, rlMax);
-                throw new RateLimitException(CHANNEL_RATE_LIMIT_ERROR.formatted(channel, rlMax));
+                log.warn("[Guard] Rate limit breached — tenantId={} channel={} value={} limit={}",
+                        tenantId, channel, value, limit);
+                throw new RateLimitException(CHANNEL_RATE_LIMIT_ERROR.formatted(channel, limit));
             }
             case 1 ->
-                log.debug("[NotificationGuardService] Passed — tenantId: {} ,channel: {} ,usage: {}/{}",
-                        tenantId, channel, count, rlMax);
+                log.debug("[Guard] Passed — tenantId={} channel={} remaining={}/{}",
+                        tenantId, channel, value, limit);
             default ->
-                throw new RateLimitException(
-                        CHANNEL_RATE_LIMIT_ERROR);
+                throw new RateLimitException(CHANNEL_RATE_LIMIT_ERROR);
         }
-    }
-
-    /**
-     * Builds a Redis dedup key by hashing the canonical form of the notification request.
-     * <p>
-     * Canonical form: tenantId:channel:templateId:key1=val1|key2=val2 (variables sorted by key)
-     * Hashed with SHA-256 to produce a fixed-length, collision-resistant key.
-     */
-    private String buildDedupKey(String tenantId,
-                                  String channel,
-                                  String templateId,
-                                  Map<String, String> variables) {
-        // Sort variable entries by key — ensures insertion-order independence
-        // e.g. {name=Kevin, age=25} and {age=25, name=Kevin} produce the same hash
-        String canonicalVars = (variables == null || variables.isEmpty())
-                ? ""
-                : variables.entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .map(e -> e.getKey() + "=" + e.getValue())
-                    .collect(Collectors.joining("|"));
-
-        String raw = tenantId + ":" + channel.toLowerCase() + ":" + templateId + ":" + canonicalVars;
-        return DUPLICATE_KEY_PREFIX + CommonUtils.generateSHA256Hash(raw);
-    }
-
-    /**
-     * Builds a Redis rate limit key scoped to the current UTC hour window.
-     * <p>
-     * Format: notif:rl:{tenantId}:{channel}:{hourEpoch}
-     * The hourEpoch changes every hour, so the counter resets naturally without
-     * needing an explicit DEL — old keys simply expire via their TTL.
-     */
-    private String buildRateLimitKey(String tenantId, String channel) {
-        long hourWindow = Instant.now().getEpochSecond() / 3600;
-        return RATE_LIMiT__KEY_PREFIX + tenantId + ":" + channel.toLowerCase() + ":" + hourWindow;
     }
 
     /**
@@ -135,8 +155,6 @@ public class RateLimiter {
      * <p>
      * The counter is auto-expired via TTL as a safety net in case the worker crashes
      * and never calls releaseInflightSlot() to decrement.
-     * <p>
-     * Must be called at the start of broadcastNotification(), before any DB or Kafka work.
      *
      * @param tenantId tenant making the request (from TenantContext)
      * @throws RateLimitException if the tenant has reached the concurrent broadcast limit
@@ -145,7 +163,7 @@ public class RateLimiter {
 
         String inflightKey = buildInflightKey(tenantId);
         int    maxInflight = properties.maxConcurrentBroadcasts();
-        int    ttlSeconds  = properties.broadcastInflightTtlSeconds(); // safety net TTL e.g. 86400 (24hrs)
+        int    ttlSeconds  = properties.broadcastInflightTtlSeconds();
 
         log.debug("[BroadcastGuard] Checking inflight — tenantId={} max={}", tenantId, maxInflight);
 
@@ -156,7 +174,7 @@ public class RateLimiter {
                 String.valueOf(ttlSeconds)
         );
 
-        if (result.isEmpty()) {
+        if (result == null || result.isEmpty()) {
             log.error("[BroadcastGuard] Redis Lua script returned null — tenantId={}", tenantId);
             throw new ValidationException(NOTIFICATION_GUARD_CHECK_ERROR);
         }
@@ -173,10 +191,10 @@ public class RateLimiter {
                                 "Please wait for one to complete before starting another.").formatted(maxInflight));
             }
             case 1 ->
-                    log.debug("[BroadcastGuard] Inflight slot acquired — tenantId={} current={}/{}",
-                            tenantId, current, maxInflight);
+                log.debug("[BroadcastGuard] Inflight slot acquired — tenantId={} current={}/{}",
+                        tenantId, current, maxInflight);
             default ->
-                    throw new RateLimitException(NOTIFICATION_GUARD_CHECK_ERROR);
+                throw new RateLimitException(NOTIFICATION_GUARD_CHECK_ERROR);
         }
     }
 
@@ -190,16 +208,53 @@ public class RateLimiter {
     public void releaseInflightSlot(String tenantId) {
 
         String inflightKey = buildInflightKey(tenantId);
-
         Long current = redisTemplate.opsForValue().decrement(inflightKey);
 
-        // Guard against going negative — shouldn't happen but clean it up if it does
         if (current != null && current < 0) {
             redisTemplate.opsForValue().set(inflightKey, "0");
             log.warn("[BroadcastGuard] Inflight counter went negative, reset to 0 — tenantId={}", tenantId);
         }
 
         log.debug("[BroadcastGuard] Inflight slot released — tenantId={} remaining={}", tenantId, current);
+    }
+
+    /**
+     * Builds a Redis dedup key by hashing the canonical form of the notification request.
+     * Canonical form: tenantId:channel:templateId:key1=val1|key2=val2 (variables sorted by key)
+     * Hashed with SHA-256 to produce a fixed-length, collision-resistant key.
+     */
+    private String buildDedupKey(String tenantId,
+                                 String channel,
+                                 String templateId,
+                                 Map<String, String> variables) {
+        String canonicalVars = (variables == null || variables.isEmpty())
+                ? ""
+                : variables.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(e -> e.getKey() + "=" + e.getValue())
+                    .collect(Collectors.joining("|"));
+
+        String raw = tenantId + ":" + channel.toLowerCase() + ":" + templateId + ":" + canonicalVars;
+        return DUPLICATE_KEY_PREFIX + CommonUtils.generateSHA256Hash(raw);
+    }
+
+    /**
+     * Builds a Redis rate limit key scoped to the current UTC hour window.
+     * Format: notif:rl:{tenantId}:{channel}:{hourEpoch}
+     * The hourEpoch changes every hour so the counter resets naturally without explicit DEL.
+     */
+    private String buildRateLimitKey(String tenantId, String channel) {
+        long hourWindow = Instant.now().getEpochSecond() / 3600;
+        return RATE_LIMiT__KEY_PREFIX + tenantId + ":" + channel.toLowerCase() + ":" + hourWindow;
+    }
+
+    /**
+     * Builds a Redis key for the token bucket state of a tenant+channel pair.
+     * Format: notif:bucket:{tenantId}:{channel}
+     * Persists across requests — the bucket state (tokens + last_refill) lives here.
+     */
+    private String buildBucketKey(String tenantId, String channel) {
+        return "notif:bucket:" + tenantId + ":" + channel.toLowerCase();
     }
 
     /**
