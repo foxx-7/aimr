@@ -11,8 +11,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 import static com.aimr.notify.constant.ApplicationConstants.*;
-import static com.aimr.notify.constant.ApplicationConstants.PASSWORD_ENCODER_ITERATION_COUNT;
-import static com.aimr.notify.constant.ApplicationConstants.PASSWORD_ENCODER_MEMORY_SIZE;
 
 @Configuration(proxyBeanMethods = false)
 public class BeanConfig {
@@ -24,7 +22,7 @@ public class BeanConfig {
                 .build();
     }
 
-    @Bean(name = "emailWorkerExecutor")
+    @Bean(name = "emailVirtualThreadExecutor")
     public Executor emailWorkerExecutor() {
         return Executors.newVirtualThreadPerTaskExecutor();
     }

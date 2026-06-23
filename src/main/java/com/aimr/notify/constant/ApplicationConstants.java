@@ -3,13 +3,13 @@ package com.aimr.notify.constant;
 public interface ApplicationConstants {
 
     String X_TENANT_ID = "x-tenant-id";
+    String X_API_KEY = "x-api-key";
     String X_REQUEST_ID = "x-request-id";
 
     String AUTH_V1_PATHS="/api/v1/auth/**";
-    String REGISTER_TENANT_V1_PATH="/api/v1/tenants";
+    String REGISTER_TENANT_V1_PATH="/api/v1/tenants/register";
 
     Integer NOTIFICATION_SEARCH_WINDOW_HOURS=24;
-    Integer NOTIFICATION_SEARCH_PAGE_SIZE=50;
 
     String CURSOR_ENCODING_FAILURE_ERROR="failure to encode pagination cursor";
     String CURSOR_DECODING_FAILURE_ERROR="invalid or tampered cursor value";
@@ -30,6 +30,9 @@ public interface ApplicationConstants {
     String DUPLICATE_KEY_PREFIX = "notif:dedup:";
     String RATE_LIMiT__KEY_PREFIX  = "notif:rl:";
     int RATE_LIMIT_WINDOW_SECONDS = 3600;
+
+    int MAX_PAGE_SIZE = 100;
+    int DEFAULT_PAGE_SIZE=20;
 
 
 

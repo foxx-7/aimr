@@ -1,9 +1,10 @@
 package com.aimr.notify.exception.handler;
 
-import com.aimr.notify.exception.*;
-import com.aimr.notify.model.dto.response.ApiResponse;
+import com.aimr.notify.api.dto.response.ApiResponse;
 import com.aimr.notify.util.CommonUtils;
+import com.aimr.notify.exception.*;
 import lombok.NonNull;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -37,10 +38,14 @@ public class GenericGlobalExceptionHandler {
                 .UNPROCESSABLE_CONTENT.value(), exception.getErrorMessage()));
     }
 
-
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ApiResponse<@NonNull String> handleDataIntegrity(DataIntegrityViolationException exception) {
+        return genericExceptionHandler(new ValidationException("Resource already exists or a constraint was violated", HttpStatus.CONFLICT.value()), 
+            () -> ApiResponse.error(HttpStatus.CONFLICT.value(), "Resource already exists or a constraint was violated"));
+    }
 
     /*
-        generic exception handler helps get rid of code duplication checks for the status code
+        generic exception dao helps get rid of code duplication checks for the status code
      */
     private ApiResponse<@NonNull String> genericExceptionHandler(AbstractException exception, Supplier<ApiResponse<@NonNull String>> runner){
         if(CommonUtils.isNotEmpty(exception.getStatusCode())){

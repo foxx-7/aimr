@@ -1,0 +1,971 @@
+================================================================================
+  AIMR NOTIFICATION PLATFORM
+  Sorting & Pagination System — Developer Reference
+  Version 2.0 | Backend Engineering
+================================================================================
+
+  Changelog from v1.0
+  --------------------
+  - SortRequest: added cursor field for subclasses that use opaque cursor encoding
+  - BaseSearchDTO: replaced raw anchorTime block with overridable buildCursorCriteria()
+  - BaseSearchDTO: replaced PageRequest with limit(pageSize+1) for hasMore detection
+  - BaseSearchDTO: added resolvedPageSize() helper for service layer use
+  - NotificationSearchDTO: composite { createdAt, _id } cursor via override
+  - NotificationSearchDTO: added windowFrom/windowTo time window guard fields
+  - NotificationSearchDTO: added from() static factory and encodeNextCursor()
+  - NotificationSearchDTO: added decodedCursor internal field
+  - TemplateSearchDTO: no changes — inherits default single-field cursor
+  - MongoSearchResult: added nextCursor field; hasMore now derived from nextCursor
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+
+  1. Overview
+  2. Core Classes
+     2.1  SortRequest
+     2.2  BaseSearchDTO
+     2.3  NotificationSearchDTO
+     2.4  TemplateSearchDTO
+     2.5  MongoSearchResult<T>
+  3. Cursor System
+     3.1  What the Cursor Does
+     3.2  Default Cursor (Single-Field anchorTime)
+     3.3  Composite Cursor (NotificationSearchDTO)
+     3.4  Why Two Fields Instead of One
+     3.5  Opaque Encoding
+     3.6  Client Page Sequence
+  4. Sorting
+     4.1  How Sort Resolution Works
+     4.2  Allowed Sort Keys
+     4.3  Sort Direction
+     4.4  Default Sort Behaviour
+  5. Pagination
+     5.1  How hasMore Detection Works (the +1 trick)
+     5.2  Time Window Guard (NotificationSearchDTO)
+     5.3  Page Size Limits
+  6. MongoDB Query Assembly
+     6.1  Query Build Order
+     6.2  Tenant Scoping
+     6.3  Criteria Combination
+  7. Usage Examples
+     7.1  Notification Search — First Page
+     7.2  Notification Search — Subsequent Pages (cursor)
+     7.3  Template Search
+     7.4  HTTP Request Body Examples
+  8. Security Considerations
+  9. Error Reference
+  10. Extension Guide
+
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The Aimr search system provides a reusable, multi-tenant-safe query layer for
+MongoDB collections. It is built on Spring Data MongoDB and abstracts sorting,
+pagination, cursor management, tenant scoping, and field-level filtering into
+a clean inheritance hierarchy.
+
+Two concrete search DTOs are provided out of the box:
+
+  - NotificationSearchDTO  — queries the notifications collection
+  - TemplateSearchDTO      — queries the notification_templates collection
+
+Both extend BaseSearchDTO, which handles all shared concerns: tenant isolation,
+cursor delegation, sort resolution, and the +1 hasMore detection pattern.
+Domain-specific field filters and cursor strategies are declared in each
+subclass.
+
+Design principles:
+  - Tenant isolation is enforced at the query layer, not the service layer.
+  - Sort keys are validated against a per-subclass allowlist.
+  - Page size is clamped server-side regardless of client input.
+  - The cursor strategy is polymorphic — subclasses override it independently.
+  - The base class never accesses domain-specific fields directly.
+  - hasMore is detected using a +1 fetch, avoiding a separate count query.
+  - Cursors are opaque Base64 tokens to the client — internal format is hidden.
+
+
+================================================================================
+2. CORE CLASSES
+================================================================================
+
+--------------------------------------------------------------------------------
+2.1  SortRequest
+--------------------------------------------------------------------------------
+
+Package : com.aimr.api.model.dto.search
+File    : SortRequest.java
+
+Carries the caller's sorting and cursor intent. Embedded inside BaseSearchDTO.
+
+  Fields:
+
+    sortKey    : String   — The document field to sort by.
+                           Must match a value in the subclass allowedSortKeys().
+                           Example: "createdAt", "status", "name"
+                           Optional. Defaults to "createdAt" if omitted.
+
+    anchorTime : Instant  — Reference timestamp used by the default single-field
+                           cursor (TemplateSearchDTO and future simple subclasses).
+                           Not used by NotificationSearchDTO, which reads its
+                           cursor from the cursor field instead.
+                           Optional. Omit on the first page request.
+
+    sortType   : SortType — Direction enum. Values: ASC | DESC
+                           Defaults to DESC if not provided.
+
+    cursor     : String   — Opaque Base64-encoded cursor string returned by the
+                           previous page response. Used by subclasses that
+                           implement composite cursor encoding (e.g.
+                           NotificationSearchDTO). The base class does not
+                           read this field directly — it is consumed by the
+                           subclass static factory.
+                           Optional. Omit on the first page request.
+
+--------------------------------------------------------------------------------
+2.2  BaseSearchDTO
+--------------------------------------------------------------------------------
+
+Package : com.aimr.api.model.dto.search
+File    : BaseSearchDTO.java
+Type    : Abstract class
+
+The shared foundation for all search DTOs in the system. Subclasses implement
+two abstract methods for domain-specific filtering and may override one
+protected method to replace the default cursor strategy.
+
+  Fields (inherited by all subclasses):
+
+    page        : int          — Zero-indexed page number. Defaults to 0.
+    pageSize    : int          — Results per page. Defaults to 20.
+                                 Clamped to MAX_PAGE_SIZE (100) server-side.
+    sortRequest : SortRequest  — Sorting and cursor configuration. Optional.
+
+  Abstract methods (subclasses must implement):
+
+    protected abstract Set<String> allowedSortKeys()
+      — Returns the set of field names the caller is permitted to sort by.
+        Any sortKey not in this set causes an IllegalArgumentException.
+
+    protected abstract List<Criteria> buildSubCriteria()
+      — Returns domain-specific Criteria for this collection.
+        Return an empty list if there are no additional filters.
+        Null entries in the list are safely ignored.
+
+  Overridable method (optional — subclasses replace when needed):
+
+    protected Criteria buildCursorCriteria()
+      — Builds the Criteria that positions the query at the correct point
+        in the collection for the next page.
+        Default implementation: single-field anchorTime boundary.
+        NotificationSearchDTO overrides this with a composite cursor.
+        Returns null on the first page request (no cursor present).
+        See Section 3 for full detail.
+
+  Public methods:
+
+    public Query toQuery(String tenantId)
+      — Assembles and returns the final Spring Data MongoDB Query object.
+        See Section 6 for the full build order.
+
+    public int resolvedPageSize()
+      — Returns the clamped page size (between 1 and MAX_PAGE_SIZE).
+        Service layer uses this when trimming the +1 result list and
+        constructing the MongoSearchResult.
+
+  Constants:
+
+    DEFAULT_PAGE_SIZE = 20
+    MAX_PAGE_SIZE     = 100
+
+--------------------------------------------------------------------------------
+2.3  NotificationSearchDTO
+--------------------------------------------------------------------------------
+
+Package : com.aimr.api.model.dto.search
+File    : NotificationSearchDTO.java
+Extends : BaseSearchDTO
+Target  : notifications collection
+
+This subclass overrides buildCursorCriteria() with a composite
+{ createdAt, _id } cursor strategy to handle timestamp collisions safely.
+It also manages its own cursor encode/decode lifecycle via a static factory
+and an instance method.
+
+  Fields:
+
+    status       : NotificationStatus — Filter by delivery status.
+                                        Values: IN_FLIGHT, ENQUEUED,
+                                        AWAITING_QUEUE, DELIVERED, FAILED,
+                                        PENDING_RETRY
+                                        Optional.
+
+    channel      : ChannelType        — Filter by delivery channel.
+                                        Values: EMAIL, SMS, PUSH, WEBHOOK
+                                        Optional.
+
+    recipientId  : String             — Filter by recipient binding ID.
+                                        Exact match. Optional.
+
+    from         : Instant            — Lower bound of explicit createdAt range.
+                                        Optional. Independent of cursor.
+
+    to           : Instant            — Upper bound of explicit createdAt range.
+                                        Optional. Independent of cursor.
+
+    windowFrom   : Instant            — Lower bound of the time window guard.
+                                        Set automatically by the from() factory.
+                                        Do not set manually.
+
+    windowTo     : Instant            — Upper bound of the time window guard.
+                                        Set automatically by the from() factory.
+                                        Do not set manually.
+
+    decodedCursor: NotificationCursor — Internal. The decoded composite cursor.
+                                        Set automatically by the from() factory.
+                                        Never exposed in the request body.
+
+  Allowed sort keys: createdAt, updatedAt, status, channel
+
+  Static factory (preferred construction method):
+
+    NotificationSearchDTO.from(encodedCursor, anchorTime, windowHours, jsonMapper)
+      — Decodes the cursor and computes windowFrom/windowTo in one call.
+        Pass encodedCursor = null on the first page request.
+        See Section 7.1 and 7.2 for usage.
+
+  Instance method:
+
+    String encodeNextCursor(Notification last, JsonMapper jsonMapper)
+      — Encodes the last document on the current page into an opaque Base64
+        cursor for the client to pass back on the next request.
+        Called by the service layer after trimming the +1 result.
+
+  Notes:
+    - Do not construct NotificationSearchDTO directly with new — use from().
+    - The from/to explicit range and the cursor window guard are independent.
+      from/to constrains an absolute date window explicitly set by the caller.
+      windowFrom/windowTo is a ±WINDOW_HOURS guard computed from anchorTime
+      to bound the MongoDB scan and prevent unbounded reads on large tenants.
+
+--------------------------------------------------------------------------------
+2.4  TemplateSearchDTO
+--------------------------------------------------------------------------------
+
+Package : com.aimr.api.model.dto.search
+File    : TemplateSearchDTO.java
+Extends : BaseSearchDTO
+Target  : notification_templates collection
+
+Does not override buildCursorCriteria(). Inherits the default single-field
+anchorTime boundary from BaseSearchDTO. Templates are low-volume and created
+infrequently, so timestamp collisions are not a concern.
+
+  Fields:
+
+    name     : String      — Case-insensitive partial match on the template
+                             name field. Implemented as a MongoDB $regex query
+                             with the "i" flag. Optional.
+
+    channel  : ChannelType — Filter by the channel this template targets.
+                             Optional.
+
+    isActive : Boolean     — Filter by active/inactive status.
+                             Pass null to return both. Optional.
+
+  Allowed sort keys: createdAt, updatedAt, name, channel
+
+--------------------------------------------------------------------------------
+2.5  MongoSearchResult<T>
+--------------------------------------------------------------------------------
+
+Package : com.aimr.api.model.dto.search
+File    : MongoSearchResult.java
+Type    : Generic result wrapper
+
+Wraps query results with pagination metadata. Returned by service methods.
+
+  Fields:
+
+    content    : List<T> — The matching documents for the current page.
+    total      : long    — Count of documents returned on this page.
+    page       : int     — The current page number (zero-indexed).
+    pageSize   : int     — The page size used for this query.
+    nextCursor : String  — Opaque Base64 cursor for the next page.
+                           Null when there are no further pages.
+    hasMore    : boolean — True when nextCursor is non-null.
+                           Derived from nextCursor — the two are always
+                           consistent and cannot diverge.
+
+  Factory method:
+
+    MongoSearchResult.of(content, total, page, pageSize, nextCursor)
+
+  Note: hasMore is now derived from nextCursor != null rather than computed
+  independently. This eliminates the previous risk of hasMore and nextCursor
+  being inconsistent with each other.
+
+
+================================================================================
+3. CURSOR SYSTEM
+================================================================================
+
+--------------------------------------------------------------------------------
+3.1  What the Cursor Does
+--------------------------------------------------------------------------------
+
+When fetching a list of notifications, returning all documents at once is not
+feasible — a tenant may have thousands. The system returns them in pages. The
+cursor tells the server exactly where the previous page ended so the next
+request can continue from that point without skipping or duplicating any
+documents.
+
+The cursor replaces the traditional page-number approach (skip N documents,
+return the next batch). Skip-based pagination requires MongoDB to physically
+scan and discard all skipped documents on every request — expensive on large
+collections and unstable when new documents arrive between requests.
+
+The cursor approach instead filters documents by position: "give me documents
+that come after this specific point." MongoDB jumps directly to that point
+in the index and reads forward. No scanning, no skipping.
+
+--------------------------------------------------------------------------------
+3.2  Default Cursor (Single-Field anchorTime)
+--------------------------------------------------------------------------------
+
+Used by: TemplateSearchDTO and any future simple subclasses.
+Implemented in: BaseSearchDTO.buildCursorCriteria()
+
+The default cursor uses a single createdAt timestamp as the page boundary.
+
+  For DESC sort (newest first):
+    Criteria.where("createdAt").lt(anchorTime)
+
+  For ASC sort (oldest first):
+    Criteria.where("createdAt").gt(anchorTime)
+
+The caller provides anchorTime in SortRequest on each request after the first.
+The value to use is the createdAt of the last document returned on the
+previous page.
+
+This strategy is sufficient for collections where documents are rarely created
+at the exact same millisecond.
+
+--------------------------------------------------------------------------------
+3.3  Composite Cursor (NotificationSearchDTO)
+--------------------------------------------------------------------------------
+
+Used by: NotificationSearchDTO only.
+Implemented in: NotificationSearchDTO.buildCursorCriteria()
+
+The composite cursor uses both createdAt and _id as the page boundary.
+
+  MongoDB query produced:
+    { $or: [
+        { createdAt: { $lt: cursor.createdAt } },
+        { createdAt: cursor.createdAt, _id: { $lt: cursor.id } }
+    ]}
+
+  Java:
+    new Criteria().orOperator(
+        Criteria.where("createdAt").lt(decodedCursor.getCreatedAt()),
+        Criteria.where("createdAt").is(decodedCursor.getCreatedAt())
+                .and("_id").lt(decodedCursor.getId())
+    )
+
+This means: return documents that are either strictly older than the cursor
+timestamp, OR have the same timestamp but a smaller _id (UUIDv7, which is
+time-ordered and therefore consistently comparable).
+
+The sort order mirrors the cursor exactly:
+  Sort.by(DESC, "createdAt").and(Sort.by(DESC, "_id"))
+
+--------------------------------------------------------------------------------
+3.4  Why Two Fields Instead of One
+--------------------------------------------------------------------------------
+
+Notifications are frequently created in bursts — when Kafka delivers a batch
+of dispatch events, multiple Notification documents may be written with the
+exact same createdAt millisecond timestamp.
+
+If only createdAt is used as the cursor boundary, the page boundary is
+ambiguous for documents at that timestamp. Depending on MongoDB's internal
+ordering, the system would either skip those documents or return them twice
+across page boundaries.
+
+The _id field (UUIDv7) breaks the tie. UUIDv7 embeds the creation timestamp
+in the high bits and a random sequence in the low bits, making every ID
+unique and consistently comparable within the same millisecond. Every
+document therefore has a unique { createdAt, _id } pair, and the cursor
+always points to exactly one position in the collection.
+
+--------------------------------------------------------------------------------
+3.5  Opaque Encoding
+--------------------------------------------------------------------------------
+
+The cursor is serialized as a JSON object containing createdAt and id:
+
+  { "createdAt": "2025-01-14T10:00:00.000Z", "id": "01938abc-..." }
+
+This JSON is then Base64-encoded into an opaque string:
+
+  eyJjcmVhdGVkQXQiOiIyMDI1LTAxLTE0VDEwOjAwOjAwWiIsImlkIjoiMDE5MzhhYmMtLi4uIn0=
+
+The client receives this string in nextCursor, stores it, and passes it back
+verbatim in the next request. The client never inspects or constructs the
+cursor — it is always treated as an opaque token.
+
+This allows the internal cursor format to change (e.g. adding a third field)
+without any client-side changes.
+
+  Encoding: NotificationSearchDTO.encodeNextCursor(lastDoc, jsonMapper)
+  Decoding: NotificationSearchDTO.from(encodedCursor, anchorTime, hours, mapper)
+
+A malformed or tampered cursor throws DataConversionException immediately
+during decoding, before any query is built.
+
+--------------------------------------------------------------------------------
+3.6  Client Page Sequence
+--------------------------------------------------------------------------------
+
+  Request 1 — first page, no cursor:
+    { "status": "DELIVERED", "channel": "EMAIL", "pageSize": 20 }
+
+  Response 1:
+    { "content": [...20 docs...], "hasMore": true,
+      "nextCursor": "eyJjcmVhdGVkQXQi..." }
+
+  Request 2 — next page, pass cursor back:
+    { "status": "DELIVERED", "channel": "EMAIL", "pageSize": 20,
+      "sortRequest": { "cursor": "eyJjcmVhdGVkQXQi..." } }
+
+  Response 2:
+    { "content": [...20 docs...], "hasMore": true,
+      "nextCursor": "dGVkQXQiOiIyMDI1..." }
+
+  Request 3 — last page:
+    { "sortRequest": { "cursor": "dGVkQXQiOiIyMDI1..." }, ... }
+
+  Response 3:
+    { "content": [...8 docs...], "hasMore": false, "nextCursor": null }
+
+
+================================================================================
+4. SORTING
+================================================================================
+
+--------------------------------------------------------------------------------
+4.1  How Sort Resolution Works
+--------------------------------------------------------------------------------
+
+Sort resolution happens inside BaseSearchDTO.toQuery() via a private helper.
+The caller provides a SortRequest; the base class validates and applies it.
+
+Resolution steps:
+
+  1. If sortRequest is null or sortKey is null → apply default sort.
+     (See Section 4.4)
+
+  2. If sortKey is provided → validate it against allowedSortKeys().
+     If validation fails → throw IllegalArgumentException immediately.
+
+  3. Resolve direction from sortType (ASC or DESC).
+
+  4. Construct a Spring Data Sort object and attach it to the Query.
+
+--------------------------------------------------------------------------------
+4.2  Allowed Sort Keys
+--------------------------------------------------------------------------------
+
+Each subclass declares which fields can be sorted on. This prevents callers
+from sorting on arbitrary or sensitive document fields.
+
+  NotificationSearchDTO : createdAt, updatedAt, status, channel
+  TemplateSearchDTO     : createdAt, updatedAt, name, channel
+
+Attempting to sort on any other field throws:
+
+  IllegalArgumentException("Invalid sort key '<key>'. Allowed: [...]")
+
+Note: _id is never in the allowedSortKeys set. The composite cursor uses _id
+internally as a tie-breaker, but it is not a caller-facing sort option.
+
+--------------------------------------------------------------------------------
+4.3  Sort Direction
+--------------------------------------------------------------------------------
+
+Controlled by SortRequest.sortType:
+
+  SortType.DESC (default) — Most recent first. Standard for notification feeds.
+  SortType.ASC            — Oldest first. Use for audit logs or sequential reads.
+
+The sort direction also determines the cursor comparison operator:
+  DESC → lt (documents older than the cursor)
+  ASC  → gt (documents newer than the cursor)
+
+--------------------------------------------------------------------------------
+4.4  Default Sort Behaviour
+--------------------------------------------------------------------------------
+
+When no SortRequest is provided (or sortKey is null), the query defaults to:
+
+  Sort by createdAt DESC
+
+Results are always deterministically ordered even with no sort preference from
+the caller.
+
+
+================================================================================
+5. PAGINATION
+================================================================================
+
+--------------------------------------------------------------------------------
+5.1  How hasMore Detection Works (the +1 trick)
+--------------------------------------------------------------------------------
+
+BaseSearchDTO.toQuery() always fetches one more document than the requested
+page size:
+
+  query.limit(resolvedPageSize() + 1)
+
+The service layer then checks the result count:
+
+  boolean hasMore = results.size() > pageSize;
+  List<T> page   = hasMore ? results.subList(0, pageSize) : results;
+
+If the extra document exists, there is at least one more page. The extra
+document is trimmed before returning — the client never sees it.
+
+This approach avoids a separate count query (mongoTemplate.count()), which
+would require MongoDB to scan all matching documents just to produce a number.
+On large tenants, that scan is significantly more expensive than reading one
+extra document.
+
+  nextCursor = hasMore ? dto.encodeNextCursor(page.getLast(), jsonMapper) : null;
+
+The nextCursor is encoded from the last document of the trimmed page (not the
+extra document), so the next request continues from the correct position.
+
+Note: The page field on BaseSearchDTO is still accepted but has no effect when
+using cursor pagination — the cursor already positions the query correctly.
+Keep page = 0 on all cursor-based requests.
+
+--------------------------------------------------------------------------------
+5.2  Time Window Guard (NotificationSearchDTO)
+--------------------------------------------------------------------------------
+
+On large tenants with months of notification history, a cursor-only query
+would scan the entire collection backwards from the cursor point. To bound
+this scan, NotificationSearchDTO applies a ±NOTIFICATION_SEARCH_WINDOW_HOURS
+boundary around anchorTime:
+
+  windowFrom = anchorTime - WINDOW_HOURS
+  windowTo   = anchorTime + WINDOW_HOURS
+
+These are added to buildSubCriteria() as:
+
+  Criteria.where("createdAt").gte(windowFrom).lte(windowTo)
+
+This scopes the MongoDB scan to a fixed time window and allows the index
+{ tenantId: 1, createdAt: -1 } to be used efficiently. The window is set
+automatically by the from() static factory — callers do not set it directly.
+
+The window and the composite cursor work together: the cursor positions
+within the window, and the window prevents the cursor from reading beyond
+the intended time range.
+
+--------------------------------------------------------------------------------
+5.3  Page Size Limits
+--------------------------------------------------------------------------------
+
+  Default page size : 20
+  Maximum page size : 100
+
+If the caller requests pageSize > 100, it is silently clamped to 100.
+If the caller requests pageSize < 1, it is silently clamped to 1.
+If the caller requests page < 0, it is silently clamped to 0.
+
+These clamps are applied inside BaseSearchDTO.resolvedPageSize() and
+cannot be overridden by subclasses or callers.
+
+
+================================================================================
+6. MONGODB QUERY ASSEMBLY
+================================================================================
+
+--------------------------------------------------------------------------------
+6.1  Query Build Order
+--------------------------------------------------------------------------------
+
+BaseSearchDTO.toQuery(tenantId) assembles the final Query in this fixed order:
+
+  Step 1 — Tenant scope
+    Criteria.where("tenantId").is(tenantId)
+    Always added first. Cannot be skipped or overridden.
+
+  Step 2 — Cursor boundary
+    Result of buildCursorCriteria() — default or subclass override.
+    Skipped (returns null) on first page request.
+
+    Default (TemplateSearchDTO):
+      DESC: Criteria.where("createdAt").lt(anchorTime)
+      ASC:  Criteria.where("createdAt").gt(anchorTime)
+
+    Override (NotificationSearchDTO):
+      new Criteria().orOperator(
+          Criteria.where("createdAt").lt(cursor.createdAt),
+          Criteria.where("createdAt").is(cursor.createdAt)
+                  .and("_id").lt(cursor.id)
+      )
+
+  Step 3 — Subclass field-level filters
+    Output of buildSubCriteria() — zero or more Criteria from the subclass.
+    Null entries are filtered out before merging.
+    For NotificationSearchDTO this also includes the windowFrom/windowTo guard.
+
+  Step 4 — Combine with andOperator
+    new Criteria().andOperator(allCriteria)
+    All criteria from Steps 1–3 are merged. Every condition must match.
+
+  Step 5 — Wrap in Query
+    new Query(combinedCriteria)
+
+  Step 6 — Attach sort
+    query.with(resolveSort())
+    See Section 4.1.
+
+  Step 7 — Apply +1 limit
+    query.limit(resolvedPageSize() + 1)
+    The extra document enables hasMore detection without a count query.
+
+Note: PageRequest (skip/limit) is no longer used. The +1 limit approach
+replaces it entirely for cursor-based collections.
+
+--------------------------------------------------------------------------------
+6.2  Tenant Scoping
+--------------------------------------------------------------------------------
+
+Every query produced by toQuery() includes a tenantId equality check as its
+first Criteria condition. No tenant can read documents belonging to another
+tenant, regardless of what subclass criteria are provided.
+
+The tenantId is passed into toQuery() by the service layer, which reads it
+from TenantContext / X-Tenant-ID header. It is never sourced from the DTO body.
+
+--------------------------------------------------------------------------------
+6.3  Criteria Combination
+--------------------------------------------------------------------------------
+
+All Criteria are merged using andOperator():
+
+  new Criteria().andOperator(c1, c2, c3, ...)
+
+Every condition must be satisfied for a document to match. There is no
+implicit OR between top-level conditions.
+
+If OR semantics are needed within a subclass filter (e.g. match status A
+OR status B), use .in() on that field, or construct a nested orOperator
+inside buildSubCriteria() and add the result to the returned list:
+
+  new Criteria().orOperator(
+      Criteria.where("status").is(DELIVERED),
+      Criteria.where("status").is(PENDING_RETRY)
+  )
+
+The outer andOperator still applies — only the intra-field logic uses OR.
+This is also exactly how the composite cursor works: a nested orOperator
+inside the cursor Criteria, combined with all other conditions via the
+outer andOperator.
+
+
+================================================================================
+7. USAGE EXAMPLES
+================================================================================
+
+--------------------------------------------------------------------------------
+7.1  Notification Search — First Page
+--------------------------------------------------------------------------------
+
+  @ValidateTenant
+  public MongoSearchResult<NotificationResponse> browseNotification(
+          Instant anchorTime, NotificationChannel channel,
+          NotificationStatus status, String encodedCursor) {
+
+      // Build DTO — cursor decode + window guard set in one call
+      // encodedCursor = null on the first page
+      NotificationSearchDTO dto = NotificationSearchDTO.from(
+          encodedCursor, anchorTime, NOTIFICATION_SEARCH_WINDOW_HOURS, jsonMapper);
+
+      dto.setStatus(status);
+      dto.setChannel(channel);
+
+      String tenantId = CommonUtils.getCurrentTenantId();
+
+      // toQuery() already includes limit(pageSize + 1)
+      Query query = dto.toQuery(tenantId);
+      List<Notification> results = mongoTemplate.find(query, Notification.class);
+
+      int pageSize  = dto.resolvedPageSize();
+      boolean hasMore = results.size() > pageSize;
+      List<Notification> page = hasMore ? results.subList(0, pageSize) : results;
+
+      String nextCursor = hasMore
+          ? dto.encodeNextCursor(page.getLast(), jsonMapper)
+          : null;
+
+      return MongoSearchResult.of(
+          page.stream().map(NotificationResponse::new).toList(),
+          page.size(), 0, pageSize, nextCursor
+      );
+  }
+
+--------------------------------------------------------------------------------
+7.2  Notification Search — Subsequent Pages (cursor)
+--------------------------------------------------------------------------------
+
+  Subsequent pages use the same method. The only difference is that
+  encodedCursor is non-null — the from() factory decodes it and sets
+  decodedCursor, which buildCursorCriteria() then uses to position the query.
+
+  The service method is identical. No conditional logic is needed — the DTO
+  handles the first-page vs subsequent-page distinction internally.
+
+--------------------------------------------------------------------------------
+7.3  Template Search
+--------------------------------------------------------------------------------
+
+  public MongoSearchResult<TemplateResponse> searchTemplates(
+          String tenantId, TemplateSearchDTO dto) {
+
+      Query query = dto.toQuery(tenantId);
+      List<NotificationTemplate> results =
+          mongoTemplate.find(query, NotificationTemplate.class);
+
+      int pageSize    = dto.resolvedPageSize();
+      boolean hasMore = results.size() > pageSize;
+      List<NotificationTemplate> page =
+          hasMore ? results.subList(0, pageSize) : results;
+
+      // Templates use raw anchorTime as the next cursor value — no encode/decode
+      // needed since timestamp collisions are not a concern.
+      String nextCursor = hasMore
+          ? page.getLast().getCreatedAt().toString()
+          : null;
+
+      return MongoSearchResult.of(
+          page.stream().map(TemplateResponse::new).toList(),
+          page.size(), 0, pageSize, nextCursor
+      );
+  }
+
+--------------------------------------------------------------------------------
+7.4  HTTP Request Body Examples
+--------------------------------------------------------------------------------
+
+  Notification search — first page, delivered emails, newest first:
+
+    POST /api/v1/notifications/search
+    X-Tenant-ID: acme-corp
+
+    {
+      "pageSize": 20,
+      "status": "DELIVERED",
+      "channel": "EMAIL",
+      "sortRequest": {
+        "sortKey": "createdAt",
+        "sortType": "DESC"
+      }
+    }
+
+  Notification search — second page using cursor from previous response:
+
+    POST /api/v1/notifications/search
+    X-Tenant-ID: acme-corp
+
+    {
+      "pageSize": 20,
+      "status": "DELIVERED",
+      "channel": "EMAIL",
+      "sortRequest": {
+        "sortKey": "createdAt",
+        "sortType": "DESC",
+        "cursor": "eyJjcmVhdGVkQXQiOiIyMDI1LTAxLTE0VDEwOjAwOjAwWiIsImlkIjoiMDE5MzhhYmMifQ=="
+      }
+    }
+
+  Template search — active email templates containing "otp", sorted by name:
+
+    POST /api/v1/templates/search
+    X-Tenant-ID: acme-corp
+
+    {
+      "pageSize": 10,
+      "name": "otp",
+      "channel": "EMAIL",
+      "isActive": true,
+      "sortRequest": {
+        "sortKey": "name",
+        "sortType": "ASC"
+      }
+    }
+
+
+================================================================================
+8. SECURITY CONSIDERATIONS
+================================================================================
+
+Sort key injection
+  All sortKey values are validated against a per-subclass allowlist before
+  being applied. An invalid key throws IllegalArgumentException immediately.
+  Sort keys are passed to the type-safe Spring Data Sort API — never
+  interpolated into strings.
+
+Cursor tampering
+  Malformed or tampered cursor strings are caught during Base64 decoding and
+  JSON deserialization in the from() factory. A DataConversionException is
+  thrown before any query is built. Tampered cursors cannot cause incorrect
+  query boundaries — the worst outcome is an exception and a 400 response.
+
+Tenant isolation
+  The tenantId Criteria is always the first condition added to every query
+  and is sourced from TenantContext, never from the request body. Callers
+  cannot influence which tenant's data they query by manipulating the DTO.
+
+Page size abuse
+  pageSize is clamped to MAX_PAGE_SIZE (100) server-side. Callers cannot
+  request unbounded result sets through this API.
+
+Regex safety (TemplateSearchDTO)
+  The name field uses MongoDB's $regex operator. Callers can supply arbitrary
+  regex patterns. This is intentional for search UX but should be rate-limited
+  at the API gateway level to prevent ReDoS attacks on complex patterns.
+  Consider adding @Size(max = 100) validation on the name field if the API
+  is publicly exposed.
+
+Time window guard (NotificationSearchDTO)
+  The ±NOTIFICATION_SEARCH_WINDOW_HOURS boundary limits how far back a query
+  can read in a single request. Callers cannot bypass this by manipulating
+  anchorTime — the window is always computed server-side in the from() factory.
+
+
+================================================================================
+9. ERROR REFERENCE
+================================================================================
+
+  IllegalArgumentException
+    Thrown by : BaseSearchDTO.toQuery() → resolveSort()
+    Cause     : sortKey is not in the subclass's allowedSortKeys() set
+    Message   : "Invalid sort key '<key>'. Allowed: [createdAt, ...]"
+    Resolution: Use one of the documented allowed sort keys for the endpoint.
+
+  DataConversionException (CURSOR_DECODING_FAILURE_ERROR)
+    Thrown by : NotificationSearchDTO.from()
+    Cause     : The cursor field cannot be Base64-decoded or JSON-deserialized
+                into a NotificationCursor — likely corrupted or tampered.
+    Resolution: Do not modify the cursor string. Pass it back exactly as
+                received in nextCursor. Discard it and start from page 1
+                if the original is lost.
+
+  DataConversionException (CURSOR_ENCODING_FAILURE_ERROR)
+    Thrown by : NotificationSearchDTO.encodeNextCursor()
+    Cause     : Jackson failed to serialize the NotificationCursor to JSON.
+                This should not happen in normal operation.
+    Resolution: Check JsonMapper configuration. Ensure NotificationCursor
+                fields are serializable (Instant, String).
+
+  No results returned (empty content list)
+    Possible causes:
+      - tenantId mismatch (wrong X-Tenant-ID header)
+      - cursor has moved past the end of the dataset
+      - windowFrom/windowTo range excludes all matching documents
+      - Filter combination is too restrictive
+    Resolution: Remove optional filters one at a time to isolate the cause.
+                On the first page request, verify anchorTime is within the
+                range of actual data.
+
+  hasMore = true but nextCursor = null (should not occur)
+    This cannot happen in v2.0. hasMore is derived from nextCursor != null,
+    so they are always consistent. If you observe this, you are likely using
+    a stale v1.0 MongoSearchResult class — update to the current version.
+
+
+================================================================================
+10. EXTENSION GUIDE
+================================================================================
+
+To add a new searchable collection:
+
+  Case A — Simple collection (no timestamp collision risk)
+  --------------------------------------------------------
+  Inherit the default single-field cursor. No cursor override needed.
+
+    public class ApiKeySearchDTO extends BaseSearchDTO {
+
+        private static final Set<String> ALLOWED_SORT_KEYS =
+            Set.of("createdAt", "name", "lastUsedAt");
+
+        private String name;
+        private Boolean isActive;
+
+        @Override
+        protected Set<String> allowedSortKeys() {
+            return ALLOWED_SORT_KEYS;
+        }
+
+        @Override
+        protected List<Criteria> buildSubCriteria() {
+            List<Criteria> criteria = new ArrayList<>();
+            if (name != null && !name.isBlank())
+                criteria.add(Criteria.where("name").regex(name, "i"));
+            if (isActive != null)
+                criteria.add(Criteria.where("isActive").is(isActive));
+            return criteria;
+        }
+    }
+
+  Service method — identical pattern for all simple subclasses:
+
+    public MongoSearchResult<ApiKeyResponse> search(String tenantId,
+                                                     ApiKeySearchDTO dto) {
+        Query query = dto.toQuery(tenantId);
+        List<ApiKey> results = mongoTemplate.find(query, ApiKey.class);
+
+        int pageSize    = dto.resolvedPageSize();
+        boolean hasMore = results.size() > pageSize;
+        List<ApiKey> page = hasMore ? results.subList(0, pageSize) : results;
+
+        String nextCursor = hasMore
+            ? page.getLast().getCreatedAt().toString()
+            : null;
+
+        return MongoSearchResult.of(
+            page.stream().map(ApiKeyResponse::new).toList(),
+            page.size(), 0, pageSize, nextCursor
+        );
+    }
+
+  Case B — High-volume collection (timestamp collision risk)
+  ----------------------------------------------------------
+  Override buildCursorCriteria() and add static factory + encode method,
+  following the NotificationSearchDTO pattern exactly.
+
+  Step 1 — Add decodedCursor field and override buildCursorCriteria()
+  Step 2 — Add a static from() factory that decodes the cursor
+  Step 3 — Add encodeNextCursor() that encodes the last document
+  Step 4 — Service layer calls from() to build, encodeNextCursor() to produce
+            the nextCursor for the response
+
+  Required MongoDB indexes for any new collection:
+
+    { tenantId: 1, createdAt: -1 }       // cursor pagination + window guard
+    { tenantId: 1, <filter-field>: 1 }   // for each filtered/sorted field
+
+  No changes to BaseSearchDTO are required for either case.
+
+--------------------------------------------------------------------------------
+  End of document
+  AIMR Notification Platform — Internal Engineering Reference
+  Version 2.0
+--------------------------------------------------------------------------------

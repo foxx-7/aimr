@@ -10,6 +10,9 @@ public class ApplicationProperties {
     @Value("${kafka.audit.topic}")
     private String auditTopic;
 
+    @Value(("${kafka.broadcast.topic}"))
+    private String broadcastTopic;
+
     @Value("${kafka.ingest.topic}")
     private String ingestTopic;
 

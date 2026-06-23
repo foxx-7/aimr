@@ -1,0 +1,135 @@
+spring:
+  application:
+    name: Aimr
+  profiles:
+    active: dev,secrets
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      client-name: ${REDIS_USER_NAME}
+      password: ${REDIS_PASSWORD}
+  mongodb:
+    uri: mongodb://localhost:27017/${MONGO_DB_NAME}
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB_NAME}
+    username: ${POSTGRES_USER_NAME}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+      pool-name: AimrHikariPool
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    generate-ddl: true
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    listener:
+      ack-mode: manual-immediate
+
+server:
+  port: 4000
+
+kafka:
+  ingest:
+    topic: notification.ingest
+  broadcast:
+    topic: notification.broadcast
+  audit:
+    topic: notification.audit
+  email:
+    topic: notification.email
+    retry:
+      topic: notification.email.retry
+      group: email-retry-worker
+    dlt:
+      topic: notification.email.dlt
+      group: email-dlt-worker
+  push:
+    topic: notification.push
+  sms:
+    topic: notification.sms
+  webhook:
+    topic: notification.webhook
+
+sendgrid:
+  api-key: ${SENDGRID_API_KEY}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: ${JWT_EXPIRATION_INTERVAL}
+  mail:
+    primary:
+      host: smtp.gmail.com
+      port: 587
+      username: ${GMAIL_USERNAME}
+      password: ${GMAIL_PASSWORD}
+    secondary:
+      host: smtp.sendgrid.net
+      port: 587
+      username: apikey
+      password: ${SENDGRID_API_KEY}
+
+aimr:
+  notification:
+    guard:
+      dup-window-seconds: 3600
+      channel-rate-limits:
+        email: 100
+        sms: 100
+        push: 100
+        webhook: 100
+      default-rate-limit: 100
+      max-concurrent-broadcasts: 2
+      broadcast-inflight-ttl-seconds: 86400
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      primaryEmailProvider:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  timelimiter:
+    instances:
+      primaryEmailProvider:
+        timeout-duration: 10s
+
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          mongodb:
+            core:
+              MongoTemplate: DEBUG
+        security: DEBUG
+        web: DEBUG
+    com:
+      aimr:
+        notify:
+          service: TRACE
+          consumer: TRACE
+          security:
+            filters:
+              JwtAuthFilter: DEBUG
+            util:
+              JwtUtil: DEBUG
+#    com.zaxxer.hikari: DEBUG
+#    com.zaxxer.hikari.HikariConfig: DEBUG

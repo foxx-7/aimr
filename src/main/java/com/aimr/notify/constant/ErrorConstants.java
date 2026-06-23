@@ -31,10 +31,12 @@ public interface ErrorConstants {
     String INVITATION_ALREADY_SENT_ERROR="This invitation has already been sent";
     String EMAIL_ALREADY_IN_USE_ERROR="Provided email already in use";
 
-    String KAFKA_PUBLISH_FAILURE_ERROR="Failed to publish to kafka queue: ";
+    String KAFKA_PUBLISH_FAILURE_ERROR="Failed to publish to dto queue: ";
     String CHANNEL_RATE_LIMIT_ERROR="Rate limit exceeded for channel '%s'. " +
             "Maximum %d requests per hour. Please retry in the next hour window.";
     String DUPLICATE_NOTIFICATION_REQUEST_ERROR="Duplicate notification request detected. The same notification was already dispatched. " +
             "You may resend %d minute(s) after initial send.";
     String NOTIFICATION_GUARD_CHECK_ERROR="Notification guard check failed due to an internal error. Please try again.";
+
+    String NOT_FOUND_ERROR_SUFFIX=" with provided details not found!";
 }

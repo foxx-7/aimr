@@ -1,8 +1,8 @@
 package com.aimr.notify.util;
 
 import com.aimr.notify.exception.ValidationException;
-import com.aimr.notify.model.context.NotificationContextHolder;
-import com.aimr.notify.model.dto.response.AuthenticatedUserDetails;
+import com.aimr.notify.domain.context.NotificationContextHolder;
+import com.aimr.notify.api.dto.response.AuthenticatedUserDetails;
 import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -48,7 +48,7 @@ public final class CommonUtils {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal()
                 instanceof AuthenticatedUserDetails authenticatedUserDetails) {
-            return authenticatedUserDetails.getUserId();
+            return authenticatedUserDetails.userId();
         }
         return null;
     }

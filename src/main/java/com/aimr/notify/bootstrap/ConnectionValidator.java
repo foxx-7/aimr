@@ -35,14 +35,32 @@ public class ConnectionValidator {
 
     @PostConstruct
     public void init() {
-        try {
-            testRedisConnection();
-            testMongoConnection();
-            testKafkaConnection();
-            testPostgresConnection();
-        } catch (Exception e) {
-            log.error("[ConnectionValidator] FATAL: Startup connection validation failed. Exiting JVM........", e);
-            System.exit(1);
+        int maxRetries = 5;
+        int retryDelayMs = 3000;
+        
+        for (int i = 1; i <= maxRetries; i++) {
+            try {
+                testRedisConnection();
+                testMongoConnection();
+                testKafkaConnection();
+                testPostgresConnection();
+                log.info("[ConnectionValidator] All external connections validated successfully.");
+                return; // Success, exit the retry loop
+            } catch (Exception e) {
+                if (i == maxRetries) {
+                    log.error("[ConnectionValidator] FATAL: Startup connection validation failed after {} attempts. Exiting JVM........", maxRetries, e);
+                    System.exit(1);
+                } else {
+                    log.warn("[ConnectionValidator] Connection validation failed on attempt {}/{}. Retrying in {} ms... ({})", 
+                            i, maxRetries, retryDelayMs, e.getMessage());
+                    try {
+                        Thread.sleep(retryDelayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        System.exit(1);
+                    }
+                }
+            }
         }
     }
 
@@ -51,8 +69,8 @@ public class ConnectionValidator {
             ListTopicsResult topics = client.listTopics();
             topics.names().get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("Error while pinging kafka connection : ", e);
-            throw new ConnectionTimeoutException("Error while pinging kafka connection",HttpStatus.INTERNAL_SERVER_ERROR.value());
+            log.error("Error while pinging dto connection : ", e);
+            throw new ConnectionTimeoutException("Error while pinging dto connection",HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }
 
@@ -60,8 +78,8 @@ public class ConnectionValidator {
         try {
             mongoClient.listDatabases().first();
         } catch (Exception e) {
-            log.error("Error while pinging mongo connection");
-            throw new ConnectionTimeoutException("Error while pinging mongo connection",HttpStatus.INTERNAL_SERVER_ERROR.value());
+            log.error("Error while pinging repo connection");
+            throw new ConnectionTimeoutException("Error while pinging repo connection",HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }
 
