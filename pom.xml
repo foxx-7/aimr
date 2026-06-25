@@ -31,9 +31,20 @@
 	</properties>
 	<dependencies>
 		<dependency>
+
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+        <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+        
+    </dependency>
+    <dependency>
+        <groupId>io.micrometer</groupId>
+        <artifactId>micrometer-registry-prometheus</artifactId>
+        <scope>runtime</scope>
+    </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -166,6 +177,8 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<mainClass>com.aimr.notify.NotifyApplication</mainClass>
+					<jvmArguments>--enable-preview</jvmArguments>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>

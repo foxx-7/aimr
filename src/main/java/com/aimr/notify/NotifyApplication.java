@@ -17,7 +17,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @EnableMongoRepositories(basePackages = "com.aimr.notify.infra.mongo.repo")
 public class NotifyApplication {
 
-	static void main(String[] args) {
+	public static void main(String[] args) {
         Runtime runtime=Runtime.getRuntime();
         System.out.println("this runtime has "+runtime.availableProcessors()+" available processors");
 

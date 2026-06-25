@@ -136,3 +136,16 @@ logging:
               JwtUtil: DEBUG
 #    com.zaxxer.hikari: DEBUG
 #    com.zaxxer.hikari.HikariConfig: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus, health, info, metrics
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
